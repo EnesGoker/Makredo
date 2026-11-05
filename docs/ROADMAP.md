@@ -79,9 +79,12 @@ Hedef: Makredo adıyla, .NET 10 üzerinde, Mac'te çekirdek testleri çalışan 
 - **Kabul:** `git grep -in "macromaster\|polly" -- src tests installer` sadece göç kodunda (T0.3) sonuç veriyor. Build 0 uyarı veriyor. Davranış değişmedi.
 
 **T0.3 — Veri klasörü göçü** `[S]` · Core
-- İlk açılışta `%LOCALAPPDATA%\Makredo` yoksa ve `%LOCALAPPDATA%\Polly` varsa içeriği **kopyala**, silme. Göçü bir işaret dosyasıyla kaydet.
+- İlk açılışta `%LOCALAPPDATA%\Makredo` yoksa ve `%LOCALAPPDATA%\Polly` varsa ayarları, kütüphane durumunu ve `macros/` ağacını **kopyala**; kaynak dosyaları değiştirme/silme, `logs/` klasörünü taşıma. Kaynak adı `LegacyStoragePaths.DirectoryName` üzerinden gelsin; varsayılan veri yolu Makredo olsun.
+- Önce hedefle aynı parent altında geçici klasöre kopyala, tamamlanınca işaret dosyası yazıp klasörü Makredo adına taşı. Hata/iptalde tamamlanmış hedef oluşmasın; sonraki açılış temiz bir kopyayla yeniden denesin. Mevcut Makredo klasörünün üzerine yazma.
+- Göç mantığı taşınabilir Infrastructure içinde olsun; WinForms yalnız logger/depolama oluşturulmadan önce çağırsın.
+- Kopyalanan kütüphane durumunda eski `macros/` ağacına işaret eden mutlak favori/son kullanım yollarını yeni konuma uyarla; dış yolları ve kaynak dosyayı koru.
 - Eski varsayılan kısayollar (F8/F9/F10/F12) aynen duruyorsa yeni varsayılanlara geç. Kullanıcı kendi kısayolunu tanımladıysa onu koru. Bu kural T1.5'te uygulanır, burada sadece göç altyapısı kurulur.
-- **Kabul:** Geçici klasörlerle yazılan testler şunları doğruluyor: kopyalama yapılıyor, ikinci açılışta tekrar kopyalanmıyor, kaynak dosyalara dokunulmuyor.
+- **Kabul:** Geçici klasör testleri Mac'te gerçekten geçiyor: kopyalama, ikinci açılışta tekrar kopyalamama, kaynak koruma, logs dışlama, mevcut hedefi koruma ve yarım kalan kopyayı yeniden deneme. Release build 0 uyarı; format kontrolü geçiyor.
 
 **T0.4 — .NET 10** `[S]`
 - Hedefler `net10.0` ve `net10.0-windows` olsun.
@@ -411,6 +414,7 @@ Hedef: Kritik bulguların hepsinin kapanması. Tuş takılı kalmamalı, makro h
 | 0008 | Koordinat modeli ve format v2 | T6.1 |
 | 0009 | Paket boyutu | T7.1 |
 | 0010 | Dağıtım ve imzalama | T7.2, T7.4 |
+| 0011 | İşlemsel veri klasörü göçü | T0.3 |
 
 ## Bulgu → görev eşlemesi
 | Bulgu | Görev | Bulgu | Görev |

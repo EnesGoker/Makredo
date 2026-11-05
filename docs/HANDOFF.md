@@ -2,26 +2,26 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.4 incelemede ([PR #2](https://github.com/EnesGoker/Makredo/pull/2))
+**Son güncelleme:** 2026-11-06 · codex · T0.3 incelemede ([PR #3](https://github.com/EnesGoker/Makredo/pull/3))
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1/T0.2 tamamlandı, T0.4 incelemede)
+- **Faz:** 0 — Kuruluş (T0.1/T0.2/T0.4 tamamlandı, T0.3 incelemede)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** T0.5 için T0.4 PR'ının birleşmesi bekleniyor; T0.3 paralel yürüyebilir.
+- **Engel:** Teknik engel yok; T0.3 [PR #3](https://github.com/EnesGoker/Makredo/pull/3) Enes'in inceleme/birleştirmesini bekliyor.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.4 — .NET 10 | codex | `codex/T0.4-dotnet-10` | İncelemede | [PR #2](https://github.com/EnesGoker/Makredo/pull/2). Release build 0 uyarı/hata; format ve transitif güvenlik taraması geçti. Taşınabilir regresyon net10.0'da 1/1 geçti; 67 test derlendi. PR'da DPI/PInvoke/nullable/WFO1000/test adapter Windows izleme listesi var. SDK/hedefleme/ortak props ve depolama/göç kodu değişmedi. Windows testleri T0.7'ye bırakıldı. Enes squash merge yapacak. |
+| T0.3 — Veri klasörü göçü | codex | `codex/T0.3-data-migration` | İncelemede | [PR #3](https://github.com/EnesGoker/Makredo/pull/3) düzeltildi: göç hatasında Türkçe mesaj + best-effort geçici tanı + exit code 1; logger/store kurulmaz. >24 saatlik etkin olmayan staging temizliği lease/root/child bağlantı korumalı. Mac 65/65, Release build 0 uyarı/hata ve format geçti. 11 yeni Windows startup vakası derlendi, çalıştırılmadı. Gerçek veri klasörlerine erişilmedi. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.3** Veri klasörü göçü (T0.4 ile paralel yürüyebilir)
-2. **T0.5** Platform katmanını ayır (T0.4 PR'ı birleştikten sonra)
-3. **T0.6** Test yapısı
-4. **T0.7** CI
+1. **T0.5** Platform katmanını ayır
+2. **T0.6** Test yapısı
+3. **T0.7** CI
+4. **T0.8** CI keşfi
 
 Faz 0 içinde T0.3 ile T0.4, T0.2 bittikten sonra paralel yürüyebilir. Sıra ve bağımlılıklar `docs/ROADMAP.md`'de.
 
@@ -42,14 +42,18 @@ Her soru için bir varsayılan var. Ajanlar cevap gelene kadar varsayılanla dev
 ## Sonraya (kapsam dışı görülenler)
 Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazılır: kısa açıklama, nerede görüldüğü, hangi görevde fark edildiği.
 - T0.4: .NET 10'a geçince 17 WinForms dosyasında 45 WFO1000 tasarım zamanı serialization tanısı oluştu. Kodla oluşturulan mevcut kontrollerin serialization davranışını korumak için yalnız `Makredo.WinForms.csproj` içinde WFO1000 bastırıldı. Bu proje kapsamı gelecekteki metadata eksiklerini de gizleyebilir; Faz 4 arayüz refaktöründe özelliklerin `DefaultValue`/`DesignerSerializationVisibility`/`ShouldSerialize` niyetleri belirlenip suppression kaldırılmalı.
+- T0.3 düzeltmesi yalnız göç/hazırlık hatasını WinForms'ta yakalar; mesaj ve best-effort geçici tanı sonrası uygulama başlamaz. Diğer composition/logger kurulum hatalarının genel işlenmesi mevcut F-017/T2.4 kapsamındadır.
 
-## Son doğrulama — T0.4
-- `dotnet build -c Release`: **0 uyarı, 0 hata**, 67 test net10.0-windows için derlendi. `dotnet format --verify-no-changes`: geçti.
-- `dotnet list package --vulnerable --include-transitive`: NuGet kaynağında beş projenin hiçbirinde bilinen açık bulunmadı. Newtonsoft.Json doğrudan referansı ve restore edilmiş test grafiğinden kalktı. Test SDK **18.11.0**, xUnit **2.9.3**, VSTest adapter **4.0.1**.
-- Mevcut `ProductIdentityTests.cs`, geçici dış `net10.0` xUnit harness'ında derlenmiş .NET 10 Domain/Application/Infrastructure assembly'leri ve yeni paketlerle Mac'te **1/1 geçti**. Windows suite çalıştırılmadı (T0.7); Core projesi henüz yok (T0.6). Denetimdeki iki eski kırmızı test değiştirilmedi.
-- Yeni analyzer suppression yalnız `src/Makredo.WinForms/Makredo.WinForms.csproj` içindeki **WFO1000**. `EventListControl` painting metodunda iki CS8602, `ConfigureGrid`'in oluşturduğu sabit `#`/`Type` kolonlarına `!` ile giderildi; yeni çalışma zamanı dalı yok. Önceki CA1859/CA1707 ve `8.0-recommended` analyzer profili değişmedi.
-- `global.json`, `Directory.Build.props`, `AppStoragePaths`, `Migration/`, Persistence ve kurallar değişmedi; T0.3'e müdahale edilmedi. 67 test korundu. Uygulama, Windows testi veya gerçek girdi gönderen bir test çalıştırılmadı.
-- [PR #2](https://github.com/EnesGoker/Makredo/pull/2) içinde T0.7 için ayrı Windows izleme listesi var: SystemAware/manuel DPI ölçekleme, çizim/kolon varsayımları, x64/ARM64 P/Invoke/INPUT boyutları ve hook/hotkey yaşam döngüsü, analyzer suppression, güncel test adapter discovery/kapanışı. CI henüz yok (T0.7).
+## Son doğrulama — T0.3
+- `dotnet build -c Release`: **0 uyarı, 0 hata**. `dotnet format --verify-no-changes`: geçti. Mevcut 67 Windows testi ve 11 yeni startup regresyonu derlendi; Windows'ta çalıştırılmadı.
+- `dotnet test tests/Makredo.Migration.Tests -c Release --no-build`: Mac'te **65 geçti, 0 başarısız, 0 atlanan** (38 göç + 27 temizlik vakası). Proje `net10.0`; yalnız Infrastructure'a referans verir ve mevcut test paketlerini kullanır. T0.6'da Core'a taşınacak.
+- Geçici klasörlerde kopyalama, byte/LastWriteTime kaynak koruması, logs/ilgisiz dosya dışlama, ikinci açılış/mevcut hedef/yarış, gerçek yarım hedef dosyası ardından enjekte I/O hatası, erişim hatası, iptal ve güncel kaynaktan retry doğrulandı. Disk gerçekten doldurulmadı; işletim sistemi kilit davranışına bağımlı test kullanılmadı.
+- Favori/son kullanım yolları yalnız eski `macros/` içindeyse kopyadaki yeni köke uyarlandı; gerçek store ile favorite/tarih semantiği, dış yol sınırları, bilinmeyen alanlar, geçerli/geçersiz tarih çakışmaları ve bozuk/uygulanamaz JSON'da byte/mtime koruması test edildi.
+- Marker `.legacy-data-migration.json`, `version: 1` ve `hotkeyMigrationPending: true` içerir. Kısayol dosyası byte olarak aynı kalır; T1.5 gerçek varsayılan dönüşümünü yapacak. Tasarım [ADR-0011](adr/0011-transactional-data-directory-migration.md) içinde.
+- Symlink/reparse kaynakları reddedilir. Temizlik, root ve child bağlantılarının (kopyalanmayan logs dahil) eski staging'e yönelmesi ve case varyantları için regresyonlarla korundu. Unix bağlantı vakaları Mac'te koştu; Windows'ta ayrıcalık nedeniyle açıkça Skipped raporlanacak.
+- >24 saatlik, tam GUID adlı staging yalnız işlem kilidi alınabiliyorsa temizlenir. `TimeProvider`/sahte saat ile 24 saat sınırı, yeni/gelecek tarihli klasörler, etkin lease, kaynak/hedef koruması ve linkler doğrulandı. Bir eski aday bulunana kadar korunan ağaçlar taranmaz; link/tarama hatası varsa temizlik atlanır. Başka etkin denemeye dokunulmaz.
+- `Program.TryPrepareStorage` hata sonrası false/null döndürür; `Main` Türkçe mesajdan sonra exit code 1 ile logger/store kurmadan çıkar. Tanı `%TEMP%/makredo-migration-<guid>.log` dosyasına best-effort yazılır; tanı hatası mesajı engellemez. 11 Windows vakası fake gösterim ve geçici dizinlerle derlendi; gerçek mesaj kutusu gösterilmedi.
+- Gerçek kullanıcı veri klasörlerine erişilmedi; tüm test verileri sentetik/geçici. Windows startup/NTFS ACL/sharing ve mevcut Windows suite çalıştırılmadı (T0.7). `gh pr checks 3`: **no checks reported**, CI henüz yok; T0.4'ün Windows framework izleme listesi [PR #2](https://github.com/EnesGoker/Makredo/pull/2) içinde duruyor.
 
 ## Öğrenilenler ve tuzaklar
 - Mac'te `net10.0-windows` testleri **çalışmaz**. Derlenir ama koşmaz. Windows testlerinin sonucu CI'dan alınır.
@@ -58,10 +62,15 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - Windows'un varsayılan zamanlayıcı çözünürlüğü yaklaşık 15,6 ms. `Task.Delay(1)` yaklaşık 15,6 ms bekler (F-004).
 - Denetim raporundaki dosya yolları ve satır numaraları eski `MacroMaster@837fe75` koduna aittir. T0.2 ve T0.5'ten sonra yeni yollara bak.
 - `.slnx` için .NET 10 SDK pini (`latestFeature`) ve Mac Windows hedefleme ayarı T0.2'de öne alındı (ADR-0002); framework ve test paketleri T0.4'te .NET 10'a taşındı. xUnit framework v2'de kalır; VSTest adapter major sürümünün framework major sürümüyle eşleşmesi gerekmez.
-- T0.3, `Composition/Migration/LegacyStoragePaths` sabitini göç kaynağı olarak kullanmalı; mevcut default veri yolu regresyonunu yeni kopyala/bir-kez davranışına göre güncellemeli. `.gitattributes` ve `git add --renormalize .` T0.2'de tamamlandı; T0.7'nin işi değil. Git index'i metinleri LF saklar; C#/proje/props/solution/resx/installer dosyaları çalışma ağacına CRLF ile çıkar, ikon/PNG binary kalır.
+- Göç logger/store kurulmadan önce tamamlanmalı; hata sonrası boş final klasörle devam etmek retry'ı bozar. `AppStoragePaths.CreateDefault()` yalnız Makredo yolunu çözer, WinForms kaynak yolunu `LegacyStoragePaths.DirectoryName` ile kurar.
+- Yaş tek başına staging sahipliği kanıtı değildir: bitişik exclusive lease aktif kopyayı yaşından bağımsız korur. Silme öncesi kaynak/hedef root ve alt bağlantıları da kontrol edilir; belirsizlikte temizlik yapılmaz.
+- Kütüphane durumu mutlak dosya yolları tutar; sadece byte kopyalama favori/son kullanım kayıtlarının UI tarafından budanmasına yol açar. Bu yüzden yalnız kopyadaki iç makro referansları yeniden köklendirilir; kaynak JSON değişmez.
+- T0.6, `tests/Makredo.Migration.Tests` testlerini ve UnixTheory helper'ını Core'a taşımalı; Infrastructure `InternalsVisibleTo("Makredo.Migration.Tests")` test seam'ini de yeni assembly adına güncellemeli.
+- `.gitattributes` ve renormalizasyon T0.2'de tamamlandı; T0.7'nin işi değil. Index LF saklar, kapsanan çalışma dosyaları CRLF ve ikon/PNG binary kalır. ADR-0003–0010 yol haritasına ayrılmıştır; göç kararı ADR-0011'dir.
 
 ## Tamamlananlar
 | Görev | PR | Tarih | Ajan |
 |---|---|---|---|
 | T0.1 — İçe aktarma | PR yok (Enes onayı); [main'de import + kit](https://github.com/EnesGoker/Makredo/commits/main/) | 2026-11-05 | codex |
 | T0.2 — Ad dönüşümü ve yapı | [PR #1](https://github.com/EnesGoker/Makredo/pull/1), squash merge `73dd5c0` | 2026-11-06 | codex |
+| T0.4 — .NET 10 | [PR #2](https://github.com/EnesGoker/Makredo/pull/2), squash merge `e1483b8` | 2026-11-06 | codex |

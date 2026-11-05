@@ -1,0 +1,74 @@
+# ADR 0011: Publish migrated data only after a complete copy
+
+- Status: Accepted
+- Date: 2026-11-06
+
+## Context
+
+The renamed application must discover existing user settings and macros without
+modifying the legacy directory or replacing an existing Makredo directory. A
+partially copied destination must not look like a completed migration on the
+next launch. Migration tests must execute on macOS before the Core test project
+is introduced in T0.6.
+
+## Decision
+
+Implement the migration in the portable Infrastructure project. The WinForms
+composition root supplies the legacy path using `LegacyStoragePaths.DirectoryName`
+and runs migration before constructing any logger or store. Keep synchronous,
+cancellation-aware startup so the existing WinForms STA entry point is preserved.
+`AppStoragePaths.CreateDefault()` resolves the Makredo directory without writing it.
+
+Copy only `playback-settings.json`, `hotkey-settings.json`, `library-state.json`,
+and the recursive `macros/` tree. Exclude legacy logs and unrelated root files.
+Read the source without modifying or deleting it. Reject reparse points in the
+selected source tree rather than following links outside that tree.
+
+Build a complete copy in a uniquely named sibling staging directory. After all
+files have been copied, write `.legacy-data-migration.json` with schema version
+`1` and `hotkeyMigrationPending: true`. Publish the staged directory with
+`Directory.Move`; never merge into or overwrite an existing destination. Shortcut
+settings remain byte-for-byte unchanged until T1.5.
+
+The staged library-state file rebases favorite and last-used paths that point
+inside the old `macros/` tree to the final `macros/` tree. Otherwise the existing
+UI's pruning step would discard those records after the directory change. Keep
+external paths and unknown metadata intact; preserve the latest valid timestamp
+when recent-file keys collide. Leave unsupported or malformed JSON unchanged for
+the existing reader to handle. File I/O failures still abort publication.
+
+On failure or cancellation, clean up only this attempt's staging directory on a
+best-effort basis and propagate the failure. Startup must not continue with an
+empty final directory. Abandoned staging directories are never treated as the
+final destination. WinForms catches migration preparation errors before creating
+the composition root, displays a Turkish message explaining that the original
+legacy data remains intact and the legacy application should be closed, and
+exits with failure. Writing the exception details to a unique file in the system
+temporary directory is best-effort; a logging failure must not hide the message.
+
+Hold an exclusive lease in a sibling lock file for each new staging attempt.
+Before an attempt, remove only matching GUID-named staging directories whose
+last modification time is more than 24 hours old, after acquiring their lease.
+Recheck age while holding the lease. Keep fresh, future-dated, active, malformed,
+and reparse-point candidates. Cleanup errors must not block a valid migration.
+Use `TimeProvider` for the age threshold and do not read or delete legacy/final
+data as part of cleanup. Validate protected root aliases before cleanup and skip
+cleanup when an existing source or destination is a reparse point. Conservatively
+protect case variants of both paths on all filesystems.
+
+Add a dedicated `net10.0` migration test project using the existing xUnit stack.
+Use real temporary directories and an internal copy-file fault seam for reliable
+I/O-failure and cancellation tests. T0.6 will consolidate these tests into Core.
+
+## Consequences
+
+The old directory remains available as the original copy. Existing Makredo data
+always wins, including when another process creates the destination during a
+migration. Retrying starts from a fresh staging directory and current source data.
+
+A hard process termination or a failed cleanup can leave a staging directory.
+Later attempts retry independently and reclaim eligible inactive copies after
+24 hours. The sibling lease allows atomic directory publication while preventing
+another instance from deleting an active copy. Files are copied individually, so the
+legacy application should be closed while migration runs; a read or sharing
+failure aborts the attempt without publishing partial data.

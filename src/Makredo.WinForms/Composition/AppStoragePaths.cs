@@ -1,4 +1,4 @@
-using Makredo.WinForms.Composition.Migration;
+using Makredo.Domain;
 
 namespace Makredo.WinForms.Composition;
 
@@ -30,7 +30,7 @@ internal sealed class AppStoragePaths
     {
         string rootDirectoryPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            LegacyStoragePaths.DirectoryName);
+            ProductInfo.Name);
 
         return FromRootDirectory(rootDirectoryPath);
     }
