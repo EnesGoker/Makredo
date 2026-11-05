@@ -1,6 +1,7 @@
-using System.Text;
 using System.Collections.Concurrent;
+using System.Text;
 using Makredo.Application.Abstractions;
+using Makredo.Domain;
 
 namespace Makredo.Infrastructure.Diagnostics;
 
@@ -27,7 +28,7 @@ public sealed class FileLogger : IAppLogger, IDisposable
         _writerThread = new Thread(ProcessQueuedEntries)
         {
             IsBackground = true,
-            Name = "Makredo.FileLogger"
+            Name = $"{ProductInfo.Name}.FileLogger"
         };
         _writerThread.Start();
     }
@@ -100,7 +101,7 @@ public sealed class FileLogger : IAppLogger, IDisposable
     {
         return Path.Combine(
             _logDirectoryPath,
-            $"makredo-{now:yyyyMMdd}.log");
+            $"{ProductInfo.Name.ToLowerInvariant()}-{now:yyyyMMdd}.log");
     }
 
     private void ProcessQueuedEntries()

@@ -1,3 +1,4 @@
+using Makredo.Domain;
 using Makredo.WinForms.Platform;
 using Makredo.WinForms.Theme;
 
@@ -40,7 +41,7 @@ internal sealed class ThemedConfirmationDialog : Form
             : macroName.Trim();
 
         using var dialog = new ThemedConfirmationDialog(
-            "Makredo",
+            ProductInfo.Name,
             "Makro silinsin mi?",
             $"{displayName} kütüphaneden silinecek.",
             "Bu işlem geri alınamaz.",

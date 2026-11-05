@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Makredo.Application.Abstractions;
 using Makredo.Application.Services;
+using Makredo.Domain;
 
 namespace Makredo.WinForms.Platform;
 
@@ -325,7 +326,7 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
 
             CreateHandle(new CreateParams
             {
-                Caption = "MakredoHotkeyMessageWindow"
+                Caption = $"{ProductInfo.Name}HotkeyMessageWindow"
             });
         }
 

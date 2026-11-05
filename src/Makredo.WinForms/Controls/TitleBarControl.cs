@@ -1,5 +1,6 @@
-using Makredo.WinForms.Theme;
 using System.Drawing.Drawing2D;
+using Makredo.Domain;
+using Makredo.WinForms.Theme;
 
 namespace Makredo.WinForms.Controls;
 
@@ -82,7 +83,7 @@ internal sealed class TitleBarControl : UserControl
         _appNameLabel = new Label
         {
             Dock = DockStyle.Fill,
-            Text = "Makredo Kontrol Merkezi",
+            Text = $"{ProductInfo.Name} Kontrol Merkezi",
             Font = DesignTokens.FontUiLarge,
             ForeColor = DesignTokens.TextPrimary,
             BackColor = DesignTokens.Background,

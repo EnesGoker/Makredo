@@ -1,8 +1,9 @@
-using Makredo.Application.Abstractions;
-using Makredo.WinForms.Platform;
-using Makredo.WinForms.Theme;
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using Makredo.Application.Abstractions;
+using Makredo.Domain;
+using Makredo.WinForms.Platform;
+using Makredo.WinForms.Theme;
 
 namespace Makredo.WinForms.Forms;
 
@@ -14,7 +15,7 @@ internal sealed class MacroOptimizationDialog : Form
     {
         ArgumentNullException.ThrowIfNull(preview);
 
-        Text = "Makredo";
+        Text = ProductInfo.Name;
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;

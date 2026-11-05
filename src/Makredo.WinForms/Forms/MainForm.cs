@@ -1,12 +1,13 @@
+using System.Globalization;
+using System.Text;
 using Makredo.Application.Abstractions;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
+using Makredo.Domain;
 using Makredo.WinForms.Controls;
 using Makredo.WinForms.Platform;
 using Makredo.WinForms.Reporting;
 using Makredo.WinForms.Theme;
-using System.Globalization;
-using System.Text;
 
 namespace Makredo.WinForms.Forms;
 
@@ -559,7 +560,7 @@ public partial class MainForm : Form
         ModalDialogOverlay.ShowMessage(
             this,
             $"{message}{Environment.NewLine}{Environment.NewLine}{detail}",
-            "Makredo",
+            ProductInfo.Name,
             MessageBoxButtons.OK,
             MessageBoxIcon.Error);
     }
@@ -941,7 +942,7 @@ public partial class MainForm : Form
             ModalDialogOverlay.ShowMessage(
                 this,
                 $"Bu isimde bir makro zaten var: {requestedName}",
-                "Makredo",
+                ProductInfo.Name,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
 
@@ -1858,7 +1859,7 @@ public partial class MainForm : Form
 
         _titleBarControl.Name = "titleBarControl";
         _titleBarControl.Dock = DockStyle.Fill;
-        _titleBarControl.SetTitle("Makredo Kontrol Merkezi");
+        _titleBarControl.SetTitle($"{ProductInfo.Name} Kontrol Merkezi");
         _titleBarControl.DragRequested += titleBarControl_DragRequested;
         _titleBarControl.MinimizeRequested += titleBarControl_MinimizeRequested;
         _titleBarControl.MaximizeRestoreRequested += titleBarControl_MaximizeRestoreRequested;

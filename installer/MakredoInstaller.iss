@@ -2,8 +2,8 @@
 #define AppVersion "1.0.0"
 #define AppPublisher "Enes Göker"
 #define RepoDir "<REPO_DIR>"
-#define SourceDir RepoDir + "\publish\Makredo-win-x64"
-#define IconPath RepoDir + "\src\Makredo.WinForms\Resources\Makredo.ico"
+#define SourceDir RepoDir + "\publish\" + AppName + "-win-x64"
+#define IconPath RepoDir + "\src\Makredo.WinForms\Resources\" + AppName + ".ico"
 
 [Setup]
 AppId={{B2D8F73E-4B6A-4DA4-9C90-1E78A71EAA21}
@@ -17,9 +17,9 @@ DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir={#RepoDir}\installer\output
-OutputBaseFilename=Makredo_Setup_v{#AppVersion}
+OutputBaseFilename={#AppName}_Setup_v{#AppVersion}
 SetupIconFile={#IconPath}
-UninstallDisplayIcon={app}\Makredo.exe
+UninstallDisplayIcon={app}\{#AppName}.exe
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -37,8 +37,8 @@ Name: "desktopicon"; Description: "Masaüstü kısayolu oluştur"; GroupDescript
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Makredo"; Filename: "{app}\Makredo.exe"; WorkingDir: "{app}"; IconFilename: "{app}\Makredo.exe"
-Name: "{autodesktop}\Makredo"; Filename: "{app}\Makredo.exe"; WorkingDir: "{app}"; IconFilename: "{app}\Makredo.exe"; Tasks: desktopicon
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppName}.exe"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppName}.exe"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppName}.exe"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppName}.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\Makredo.exe"; Description: "Makredo uygulamasını başlat"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppName}.exe"; Description: "{#AppName} uygulamasını başlat"; Flags: nowait postinstall skipifsilent

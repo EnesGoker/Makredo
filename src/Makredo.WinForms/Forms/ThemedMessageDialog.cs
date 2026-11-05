@@ -1,3 +1,4 @@
+using Makredo.Domain;
 using Makredo.WinForms.Platform;
 using Makredo.WinForms.Theme;
 
@@ -17,7 +18,7 @@ internal sealed class ThemedMessageDialog : Form
         IReadOnlyList<MessageButtonSpec> buttonSpecs = ResolveButtons(buttons);
 
         Text = string.IsNullOrWhiteSpace(caption)
-            ? "Makredo"
+            ? ProductInfo.Name
             : caption.Trim();
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -321,7 +322,7 @@ internal sealed class ThemedMessageDialog : Form
             MessageBoxIcon.Warning => "Uyarı",
             MessageBoxIcon.Information => "Bilgi",
             MessageBoxIcon.Question => "Onay",
-            _ => "Makredo"
+            _ => ProductInfo.Name
         };
     }
 

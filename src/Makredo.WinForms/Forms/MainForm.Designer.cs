@@ -1,3 +1,5 @@
+using Makredo.Domain;
+
 namespace Makredo.WinForms.Forms;
 
 partial class MainForm
@@ -32,7 +34,7 @@ partial class MainForm
         titleLabel.Name = "titleLabel";
         titleLabel.Size = new Size(177, 15);
         titleLabel.TabIndex = 0;
-        titleLabel.Text = "Makredo Kontrol Merkezi";
+        titleLabel.Text = $"{ProductInfo.Name} Kontrol Merkezi";
         // 
         // MainForm
         // 
@@ -41,7 +43,7 @@ partial class MainForm
         Controls.Add(titleLabel);
         Name = "MainForm";
         StartPosition = FormStartPosition.CenterScreen;
-        Text = "Makredo Kontrol Merkezi";
+        Text = $"{ProductInfo.Name} Kontrol Merkezi";
         ResumeLayout(false);
         PerformLayout();
     }

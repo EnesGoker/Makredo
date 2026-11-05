@@ -1,3 +1,4 @@
+using Makredo.Domain;
 using Makredo.WinForms.Platform;
 using Makredo.WinForms.Theme;
 
@@ -13,7 +14,7 @@ internal sealed class MacroNameEditDialog : Form
     public MacroNameEditDialog(string currentName)
         : this(
             currentName,
-            "Makredo",
+            ProductInfo.Name,
             "Makro adını düzenle",
             "Kaydet")
     {
@@ -177,7 +178,7 @@ internal sealed class MacroNameEditDialog : Form
             ModalDialogOverlay.ShowMessage(
                 this,
                 "Makro adı boş olamaz.",
-                "Makredo",
+                ProductInfo.Name,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;
@@ -188,7 +189,7 @@ internal sealed class MacroNameEditDialog : Form
             ModalDialogOverlay.ShowMessage(
                 this,
                 "Makro adı dosya adında kullanılamayan karakterler içeremez.",
-                "Makredo",
+                ProductInfo.Name,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;

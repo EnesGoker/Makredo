@@ -1,5 +1,6 @@
 using System.Threading;
 using Makredo.Application.Abstractions;
+using Makredo.Domain;
 using Makredo.WinForms.Forms;
 
 namespace Makredo.WinForms;
@@ -44,7 +45,7 @@ internal sealed class GlobalExceptionHandlerRegistration : IDisposable
 
         SafeShowErrorMessage(
             "Beklenmeyen bir uygulama hatasi olustu. Ayrintilar gunluk dosyasina yazildi.",
-            "Makredo",
+            ProductInfo.Name,
             MessageBoxIcon.Error);
     }
 

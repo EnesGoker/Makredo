@@ -1,8 +1,9 @@
+using System.Drawing.Drawing2D;
 using Makredo.Application.Abstractions;
+using Makredo.Domain;
 using Makredo.WinForms.Controls;
 using Makredo.WinForms.Platform;
 using Makredo.WinForms.Theme;
-using System.Drawing.Drawing2D;
 
 namespace Makredo.WinForms.Forms;
 
@@ -30,7 +31,7 @@ public sealed class HotkeySettingsDialog : Form
 
         SuspendLayout();
 
-        Text = "Makredo";
+        Text = ProductInfo.Name;
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -329,7 +330,7 @@ public sealed class HotkeySettingsDialog : Form
             ModalDialogOverlay.ShowMessage(
                 this,
                 ex.Message,
-                "Makredo",
+                ProductInfo.Name,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }

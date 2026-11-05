@@ -1,9 +1,10 @@
-using Makredo.Domain.Enums;
-using Makredo.Domain.Models;
-using Makredo.WinForms.Controls;
 using System.Globalization;
 using System.Net;
 using System.Text;
+using Makredo.Domain.Enums;
+using Makredo.Domain.Models;
+using Makredo.Domain;
+using Makredo.WinForms.Controls;
 
 namespace Makredo.WinForms.Reporting;
 
@@ -79,7 +80,7 @@ internal static class MacroReportGenerator
         MacroReportStatistics statistics = Analyze(session, filePath);
         var builder = new StringBuilder();
 
-        builder.AppendLine("Makredo Oturum Raporu");
+        builder.AppendLine($"{ProductInfo.Name} Oturum Raporu");
         builder.AppendLine(new string('=', 29));
         builder.AppendLine();
         builder.AppendLine("Makro: " + statistics.SessionName);
@@ -139,7 +140,7 @@ internal static class MacroReportGenerator
             <head>
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1">
-              <title>Makredo Oturum Raporu - {{Html(statistics.SessionName)}}</title>
+              <title>{{ProductInfo.Name}} Oturum Raporu - {{Html(statistics.SessionName)}}</title>
               <style>
                 :root {
                   color-scheme: dark;
@@ -251,7 +252,7 @@ internal static class MacroReportGenerator
             <body>
               <main>
                 <header>
-                  <h1>Makredo Oturum Raporu</h1>
+                  <h1>{{ProductInfo.Name}} Oturum Raporu</h1>
                   <p class="muted">{{Html(statistics.SessionName)}} için üretilen analiz raporu</p>
                 </header>
 
