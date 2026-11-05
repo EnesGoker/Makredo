@@ -1,5 +1,5 @@
-using Makredo.Application.Abstractions;
 using System.Globalization;
+using Makredo.Application.Abstractions;
 
 namespace Makredo.WinForms.Controls;
 

@@ -622,8 +622,8 @@ internal static class AppShellLayoutProfileResolver
         return mode switch
         {
             AppShellLayoutMode.Constrained => 150,
-            AppShellLayoutMode.Compact     => 165,
-            _                              => 180
+            AppShellLayoutMode.Compact => 165,
+            _ => 180
         };
     }
 

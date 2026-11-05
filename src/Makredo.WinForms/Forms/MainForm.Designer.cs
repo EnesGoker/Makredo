@@ -26,18 +26,18 @@ partial class MainForm
         components = new System.ComponentModel.Container();
         titleLabel = new Label();
         SuspendLayout();
-        // 
+        //
         // titleLabel
-        // 
+        //
         titleLabel.AutoSize = true;
         titleLabel.Location = new Point(20, 16);
         titleLabel.Name = "titleLabel";
         titleLabel.Size = new Size(177, 15);
         titleLabel.TabIndex = 0;
         titleLabel.Text = $"{ProductInfo.Name} Kontrol Merkezi";
-        // 
+        //
         // MainForm
-        // 
+        //
         AutoScaleMode = AutoScaleMode.None;
         ClientSize = new Size(984, 761);
         Controls.Add(titleLabel);

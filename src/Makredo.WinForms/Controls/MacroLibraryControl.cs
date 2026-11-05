@@ -1,7 +1,7 @@
-using Makredo.Application.Abstractions;
-using Makredo.WinForms.Theme;
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using Makredo.Application.Abstractions;
+using Makredo.WinForms.Theme;
 
 namespace Makredo.WinForms.Controls;
 

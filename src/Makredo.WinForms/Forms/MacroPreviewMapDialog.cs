@@ -1,8 +1,8 @@
+using System.Drawing.Drawing2D;
 using Makredo.Domain.Models;
 using Makredo.WinForms.Controls;
 using Makredo.WinForms.Platform;
 using Makredo.WinForms.Theme;
-using System.Drawing.Drawing2D;
 
 namespace Makredo.WinForms.Forms;
 

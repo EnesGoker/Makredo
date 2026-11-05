@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
+using Makredo.Domain;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
-using Makredo.Domain;
 using Makredo.WinForms.Controls;
 
 namespace Makredo.WinForms.Reporting;

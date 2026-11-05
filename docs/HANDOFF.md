@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.2 — Ad dönüşümü ve yapı 🔒 | codex | `codex/T0.2-rename-and-layout` | Devam ediyor | Yapı/ad dönüşümü ve `ProductInfo.Name` tamam; göç sabiti eski veri yolunu koruyor. Düz Release build 0 uyarı/hata. 62 eski test + 5 regresyon var; taşınabilir logger regresyonu dış net8 harness ile Mac'te 1/1 geçti. Sıradaki: whitespace/CRLF ve imports düzeltmeleri, son build/format, Windows exe çıktısı, PR. SDK pini/Mac hedefleme T0.4'ten öne alındı (ADR-0002); framework .NET 8. `MainForm`/`AppShellLayoutProfile` kilitli. |
+| T0.2 — Ad dönüşümü ve yapı 🔒 | codex | `codex/T0.2-rename-and-layout` | Devam ediyor | Uygulama ve 124 C# dosyasının whitespace/CRLF düzeni tamam. Düz Release build 0 uyarı/hata; format kontrolü geçti. 62 eski + 5 yeni test derlendi; taşınabilir logger regresyonu dış harness ile Mac'te 1/1 geçti. Win-x64 publish `Makredo.exe` üretti, PE başlığı doğrulandı; çalıştırılmadı. Sıradaki: PR ve son HANDOFF. Windows suite/CI henüz doğrulanmadı (T0.6/T0.7). `MainForm`/`AppShellLayoutProfile` kilitli. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 

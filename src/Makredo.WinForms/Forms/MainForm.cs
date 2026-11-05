@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text;
 using Makredo.Application.Abstractions;
+using Makredo.Domain;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
-using Makredo.Domain;
 using Makredo.WinForms.Controls;
 using Makredo.WinForms.Platform;
 using Makredo.WinForms.Reporting;
@@ -2090,7 +2090,7 @@ public partial class MainForm : Form
         }
         catch
         {
-      
+
         }
 
         return Screen.PrimaryScreen?.WorkingArea

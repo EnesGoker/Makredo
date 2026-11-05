@@ -1,6 +1,6 @@
+using System.Globalization;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
-using System.Globalization;
 
 namespace Makredo.WinForms.Controls;
 

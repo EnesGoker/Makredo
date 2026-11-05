@@ -1,8 +1,8 @@
-using Makredo.Application.Abstractions;
-using Makredo.Domain.Models;
 using System.Globalization;
 using System.Text.Json;
 using System.Xml;
+using Makredo.Application.Abstractions;
+using Makredo.Domain.Models;
 
 namespace Makredo.Infrastructure.Persistence;
 

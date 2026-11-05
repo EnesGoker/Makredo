@@ -34,9 +34,9 @@ partial class ToolbarControl
         hotkeysButton = new ToolbarButton();
         toolbarLayoutPanel.SuspendLayout();
         SuspendLayout();
-        // 
+        //
         // toolbarLayoutPanel
-        // 
+        //
         toolbarLayoutPanel.ColumnCount = 6;
         toolbarLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.666666F));
         toolbarLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.666666F));
@@ -63,63 +63,63 @@ partial class ToolbarControl
         toolbarLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         toolbarLayoutPanel.Size = new Size(1200, 62);
         toolbarLayoutPanel.TabIndex = 0;
-        // 
+        //
         // recordButton
-        // 
+        //
         recordButton.Dock = DockStyle.Fill;
         recordButton.Location = new Point(15, 13);
         recordButton.Name = "recordButton";
         recordButton.Size = new Size(190, 36);
         recordButton.TabIndex = 0;
         recordButton.Text = "Kaydi Baslat   F8";
-        // 
+        //
         // stopButton
-        // 
+        //
         stopButton.Dock = DockStyle.Fill;
         stopButton.Location = new Point(211, 13);
         stopButton.Name = "stopButton";
         stopButton.Size = new Size(190, 36);
         stopButton.TabIndex = 1;
         stopButton.Text = "Durdur   F9";
-        // 
+        //
         // playbackButton
-        // 
+        //
         playbackButton.Dock = DockStyle.Fill;
         playbackButton.Location = new Point(407, 13);
         playbackButton.Name = "playbackButton";
         playbackButton.Size = new Size(190, 36);
         playbackButton.TabIndex = 2;
         playbackButton.Text = "Oynat   F10";
-        // 
+        //
         // saveButton
-        // 
+        //
         saveButton.Dock = DockStyle.Fill;
         saveButton.Location = new Point(603, 13);
         saveButton.Name = "saveButton";
         saveButton.Size = new Size(190, 36);
         saveButton.TabIndex = 3;
         saveButton.Text = "Kaydet";
-        // 
+        //
         // loadButton
-        // 
+        //
         loadButton.Dock = DockStyle.Fill;
         loadButton.Location = new Point(799, 13);
         loadButton.Name = "loadButton";
         loadButton.Size = new Size(190, 36);
         loadButton.TabIndex = 4;
         loadButton.Text = "Yukle";
-        // 
+        //
         // hotkeysButton
-        // 
+        //
         hotkeysButton.Dock = DockStyle.Fill;
         hotkeysButton.Location = new Point(995, 13);
         hotkeysButton.Name = "hotkeysButton";
         hotkeysButton.Size = new Size(190, 36);
         hotkeysButton.TabIndex = 5;
         hotkeysButton.Text = "Kisayollar   F12";
-        // 
+        //
         // ToolbarControl
-        // 
+        //
         AutoScaleMode = AutoScaleMode.None;
         Controls.Add(toolbarLayoutPanel);
         Name = "ToolbarControl";

@@ -1,5 +1,5 @@
-using Makredo.WinForms.Theme;
 using System.Drawing.Drawing2D;
+using Makredo.WinForms.Theme;
 
 namespace Makredo.WinForms.Controls;
 
@@ -587,12 +587,12 @@ internal sealed class PlaybackControl : UserControl
         {
             switch (Kind)
             {
-                case IconButtonKind.SkipBack:    DrawSkipBackIcon(g, b, brush); break;
-                case IconButtonKind.StepBack:    DrawStepBackIcon(g, b, brush); break;
+                case IconButtonKind.SkipBack: DrawSkipBackIcon(g, b, brush); break;
+                case IconButtonKind.StepBack: DrawStepBackIcon(g, b, brush); break;
                 case IconButtonKind.StepForward: DrawStepForwardIcon(g, b, brush); break;
-                case IconButtonKind.Pause:       DrawPauseIcon(g, b, brush); break;
-                case IconButtonKind.Stop:        DrawStopIcon(g, b, brush); break;
-                default:                         DrawPlayIcon(g, b, brush); break;
+                case IconButtonKind.Pause: DrawPauseIcon(g, b, brush); break;
+                case IconButtonKind.Stop: DrawStopIcon(g, b, brush); break;
+                default: DrawPlayIcon(g, b, brush); break;
             }
         }
 
@@ -666,7 +666,7 @@ internal sealed class PlaybackControl : UserControl
             });
         }
 
-    } 
+    }
 
     private enum IconButtonKind
     {
@@ -676,7 +676,7 @@ internal sealed class PlaybackControl : UserControl
         Pause,
         StepForward,
         Stop,
-        Previous 
+        Previous
     }
 
     private static GraphicsPath CreateRoundPath(Rectangle bounds, int radius)
