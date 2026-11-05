@@ -10,6 +10,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
     private readonly ICursorPositionProvider _cursorPositionProvider;
     private readonly IApplicationStateService _applicationStateService;
     private readonly IAppLogger _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly object _syncRoot = new();
     private readonly SemaphoreSlim _eventExecutionGate = new(1, 1);
 
@@ -24,12 +25,14 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         IInputPlaybackAdapter inputPlaybackAdapter,
         ICursorPositionProvider cursorPositionProvider,
         IApplicationStateService applicationStateService,
-        IAppLogger? logger = null)
+        IAppLogger? logger = null,
+        TimeProvider? timeProvider = null)
     {
         _inputPlaybackAdapter = inputPlaybackAdapter;
         _cursorPositionProvider = cursorPositionProvider;
         _applicationStateService = applicationStateService;
         _logger = logger ?? NullAppLogger.Instance;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public bool IsPlaying => _applicationStateService.IsState(AppState.Playing);
@@ -118,7 +121,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
 
             if (effectiveSettings.InitialDelayMs > 0)
             {
-                await Task.Delay(effectiveSettings.InitialDelayMs, playbackCancellationToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(effectiveSettings.InitialDelayMs), _timeProvider, playbackCancellationToken);
             }
 
             playbackCancellationToken.ThrowIfCancellationRequested();
@@ -150,7 +153,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
 
                 if (delayMs > 0)
                 {
-                    await Task.Delay(delayMs, playbackCancellationToken);
+                    await Task.Delay(TimeSpan.FromMilliseconds(delayMs), _timeProvider, playbackCancellationToken);
                 }
 
                 playbackCancellationToken.ThrowIfCancellationRequested();

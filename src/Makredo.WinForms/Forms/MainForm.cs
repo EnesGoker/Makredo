@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Text;
 using Makredo.Application.Abstractions;
+using Makredo.Application.Filters;
+using Makredo.Application.Reporting;
 using Makredo.Domain;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
 using Makredo.WinForms.Controls;
 using Makredo.WinForms.Platform;
-using Makredo.WinForms.Reporting;
 using Makredo.WinForms.Theme;
 
 namespace Makredo.WinForms.Forms;
