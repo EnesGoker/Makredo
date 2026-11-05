@@ -3,7 +3,7 @@
   <Project Path="src/Makredo.Domain/Makredo.Domain.csproj" Id="e8b0f439-4cef-489c-b547-1caa54f64bdd" />
   <Project Path="src/Makredo.Infrastructure/Makredo.Infrastructure.csproj" Id="22eadc99-8e3b-4a6a-b3f3-7e5a07dcfc54" />
   <Project Path="src/Makredo.Platform.Windows/Makredo.Platform.Windows.csproj" Id="a951c080-69eb-4df5-b9de-e5d40a1e9635" />
-  <Project Path="tests/Makredo.Tests/Makredo.Tests.csproj" Id="58b5370a-31d4-466c-a9e7-d617404bd321" />
+  <Project Path="tests/Makredo.Windows.Tests/Makredo.Windows.Tests.csproj" Id="58b5370a-31d4-466c-a9e7-d617404bd321" />
   <Project Path="src/Makredo.WinForms/Makredo.WinForms.csproj" Id="167e2266-cd54-4324-9620-04e282d81884" />
-  <Project Path="tests/Makredo.Migration.Tests/Makredo.Migration.Tests.csproj" Id="b127aaa9-b196-4e8a-98e7-960cb937836b" />
+  <Project Path="tests/Makredo.Core.Tests/Makredo.Core.Tests.csproj" Id="b127aaa9-b196-4e8a-98e7-960cb937836b" />
 </Solution>

@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using Makredo.Domain;
-using Makredo.WinForms.Composition;
+using Makredo.Infrastructure.Persistence;
 using Xunit;
 
-namespace Makredo.Tests.Migration;
+namespace Makredo.Core.Tests.Migration;
 
 public sealed class AppStoragePathsTests
 {

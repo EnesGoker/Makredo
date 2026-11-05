@@ -5,7 +5,7 @@ using Makredo.Infrastructure.Migration;
 using Makredo.Infrastructure.Persistence;
 using Xunit;
 
-namespace Makredo.Migration.Tests;
+namespace Makredo.Core.Tests.Migration;
 
 public sealed class DataDirectoryMigratorTests
 {

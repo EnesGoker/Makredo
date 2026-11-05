@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Makredo.Migration.Tests;
+namespace Makredo.Core.Tests.Migration;
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 internal sealed class UnixTheoryAttribute : TheoryAttribute

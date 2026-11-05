@@ -2,7 +2,7 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.6 başladı
+**Son güncelleme:** 2026-11-06 · codex · T0.6 doğrulandı, PR hazırlanıyor
 
 ## Durum
 - **Faz:** 0 — Kuruluş (T0.1–T0.5 tamamlandı, T0.6 devam ediyor)
@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.6 — Test yapısı | codex | `codex/T0.6-test-structure` | Devam ediyor | Saf filtre/rapor sınıfları Application, AppStoragePaths Infrastructure katmanına namespace/import dışında değişmeden taşındı (ADR-0012). Test ayrımı çalışma ağacında hazır; sıradaki commit: iki test projesi, fake zaman ve 108/108 metot sayım kanıtı. Windows testleri Mac'te koşulmayacak. |
+| T0.6 — Test yapısı | codex | `codex/T0.6-test-structure` | Devam ediyor | Core/Windows ayrımı ve göç birleşimi tamamlandı. 108/108 eski metot korundu: 143 eski vaka → 154 (toolbar döngüsü Theory'de 12 satır, +11). Mac Core 120/120; Windows 34 vaka derlendi, koşmadı. Build 0 uyarı/hata, format ve sayım scripti geçti. Sıradaki: PR aç ve İncelemede yap. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
@@ -44,15 +44,15 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - T0.3 düzeltmesi yalnız göç/hazırlık hatasını WinForms'ta yakalar; mesaj ve best-effort geçici tanı sonrası uygulama başlamaz. Diğer composition/logger kurulum hatalarının genel işlenmesi mevcut F-017/T2.4 kapsamındadır.
 - T0.5: Hook/SendInput davranışları taşınırken değiştirilmedi. Basılı girdilerin bırakılması F-001/T1.2, fiziksel acil durdurma F-002/T1.6 kapsamındadır; yeni yollar `src/Makredo.Platform.Windows/Hooks` ve `Interop` altındadır.
 
-## Son doğrulama — T0.5
-- `dotnet build -c Release`: **0 uyarı, 0 hata**; yedi proje ve mevcut Windows testleri derlendi. `dotnet format --verify-no-changes`: geçti.
-- `dotnet test tests/Makredo.Migration.Tests -c Release --no-build`: Mac'te **65 geçti, 0 başarısız, 0 atlanan**. Göç/log/kalıcılık kodu değişmedi; yeni test veya paket eklenmedi.
-- `git grep -nEi 'DllImport|LibraryImport|user32|kernel32' -- src/Makredo.Domain src/Makredo.Application src/Makredo.Infrastructure`: **çıktı boş, exit 1 (eşleşme yok)**. Genişletilmiş `NativeLibrary` taraması da boş.
-- Silmeden önce kod/proje grep'i `NullHotkeyService`, `NullKeyboardHookSource`, `NullMouseHookSource` için yalnız sınıf tanımını; `DefaultHotkeyConfiguration` için yalnız tanım ve kendi constructor'ını verdi. Harici kullanım yoktu. Kullanılan `NullAppLogger` korundu; kanıt [PR #4](https://github.com/EnesGoker/Makredo/pull/4) açıklamasında.
-- İki hook, `NativeMethods`, `WindowsInputPlaybackAdapter` ve `WindowsHotkeyService` yeni Platform assembly'sinde. Eski/yeni beş kaynakta yalnız namespace/import dönüşümleri var; gövdeler, P/Invoke/struct/delegate tanımları aynı. Tüketicilerde yalnız using değişti. MainForm/Profile, DPI/chrome, göç ve startup akışı değişmedi.
-- Platform `net10.0-windows`, `UseWindowsForms=true` (NativeWindow); yalnız Application/Domain'e bağlı. Infrastructure aynı iki Core projeye bağlı kalır; WinForms ve Windows testleri Platform'a doğrudan referans verir. Platform'un Infrastructure/WinForms proje bağımlılığı yoktur.
-- Gerçek girdi, uygulama veya Windows testleri çalıştırılmadı. CI T0.7'de kurulacak; native davranış/Windows runtime doğrulanmadı. UI'ye özgü `WindowChromeNative` ve `AppScale` WinForms'ta bırakıldı; genel hook/SendInput davranış düzeltmeleri Faz 1'e ayrıldı.
-- `gh pr checks 4`: `no checks reported` (CI henüz yok); PR açık ve `MERGEABLE` / `CLEAN`.
+## Son doğrulama — T0.6
+- `dotnet build -c Release`: **0 uyarı, 0 hata**; yedi proje, Windows testleri dahil derlendi. `dotnet format --verify-no-changes`: geçti.
+- `dotnet test tests/Makredo.Core.Tests -c Release`: Mac'te **120 geçti, 0 başarısız, 0 atlanan**. Göç projesinin 65 vakası Core'a birleşti.
+- `python3 scripts/verify-test-migration.py`: **108/108 eski metot korundu**; 62 Program + 34 göç + 12 regresyon metodu. Eski 143 vaka → 154: yalnız toolbar'ın mevcut 3×4 döngüsü 12 ayrı Theory satırına dönüştü (+11). Core 89 metot/120 vaka; Windows 19 metot/34 vaka. [Tam eşleme](testing/T0.6-test-map.md) her eski adı ve yeni yolu listeler; eski InlineData ve UnixTheory platform koşulları korundu.
+- Özel Expect kaldırıldı; xUnit Assert doğrudan kullanılır. Koleksiyon boyutlarında eşdeğer Single/Empty kullanıldı, analyzer bastırılmadı. İki eski beklenti düzeltildi: `adayi` → `adayı`; Expanded/2× başlık yüksekliği 108 → 80 (üretimde `Scale(40, 2)`, 54px dayanağı yok). Başlık/UI davranış kodu değişmedi.
+- Filtre/rapor ve yardımcı tipleri Application'a, AppStoragePaths Infrastructure.Persistence'e namespace/import dışında aynı gövdelerle taşındı; saf mantığın testleri Mac'te çalışıyor. MainForm yalnız import değişti, AppShellLayoutProfile aynı. Sınırlar ADR-0012'de.
+- Sabit Task.Delay/Thread.Sleep veya senkron task bekleme testlerde yok. Pause/resume mevcut navigation sinyaliyle, uçuşta gecikme regresyonu timer kayıt sinyali + FakeTimeProvider.Advance ile ilerler. MacroPlaybackService isteğe bağlı TimeProvider alır, varsayılan System aynı davranışı korur. Test-only Microsoft.Extensions.TimeProvider.Testing 10.0.0 eklendi; üretim paketleri değişmedi.
+- Core projelerde Win32 grep hâlâ boş (exit 1); Core test projesi yalnız Domain/Application/Infrastructure referanslıyor. Eski Makredo.Tests/Makredo.Migration.Tests projeleri çözümden kaldırıldı; friend assembly adları yenilendi.
+- Windows testleri, uygulama veya gerçek girdi çalıştırılmadı. CI T0.7'de kurulacak; derleme Windows runtime başarısı değildir. PR kontrol durumu PR açılınca kaydedilecek.
 
 ## Öğrenilenler ve tuzaklar
 - Mac'te `net10.0-windows` testleri **çalışmaz**. Derlenir ama koşmaz. Windows testlerinin sonucu CI'dan alınır.
@@ -64,7 +64,7 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - Göç logger/store kurulmadan önce tamamlanmalı; hata sonrası boş final klasörle devam etmek retry'ı bozar. `AppStoragePaths.CreateDefault()` yalnız Makredo yolunu çözer, WinForms kaynak yolunu `LegacyStoragePaths.DirectoryName` ile kurar.
 - Yaş tek başına staging sahipliği kanıtı değildir: bitişik exclusive lease aktif kopyayı yaşından bağımsız korur. Silme öncesi kaynak/hedef root ve alt bağlantıları da kontrol edilir; belirsizlikte temizlik yapılmaz.
 - Kütüphane durumu mutlak dosya yolları tutar; sadece byte kopyalama favori/son kullanım kayıtlarının UI tarafından budanmasına yol açar. Bu yüzden yalnız kopyadaki iç makro referansları yeniden köklendirilir; kaynak JSON değişmez.
-- T0.6, `tests/Makredo.Migration.Tests` testlerini ve UnixTheory helper'ını Core'a taşımalı; Infrastructure `InternalsVisibleTo("Makredo.Migration.Tests")` test seam'ini de yeni assembly adına güncellemeli.
+- T0.6: göç testleri ve UnixTheory artık `tests/Makredo.Core.Tests/Migration` altında, Infrastructure test seam'i Core.Tests'e açık. WinForms proje adı `Makredo.WinForms` olsa da gerçek AssemblyName `Makredo`; taşınan internal saf sınıfların UI friend adı bu olmalı. Kaynak kopyası linklemek yerine gerçek taşınabilir assembly test edilir.
 - `.gitattributes` ve renormalizasyon T0.2'de tamamlandı; T0.7'nin işi değil. Index LF saklar, kapsanan çalışma dosyaları CRLF ve ikon/PNG binary kalır. ADR-0003–0010 yol haritasına ayrılmıştır; göç kararı ADR-0011'dir.
 
 ## Tamamlananlar

@@ -2,12 +2,13 @@ using System;
 using System.IO;
 using System.Linq;
 using Makredo.Domain;
+using Makredo.Infrastructure.Persistence;
 using Makredo.WinForms.Composition;
 using Makredo.WinForms.Composition.Migration;
 using Xunit;
 using ApplicationProgram = Makredo.WinForms.Program;
 
-namespace Makredo.Tests.Migration;
+namespace Makredo.Windows.Tests.Migration;
 
 public sealed class StartupMigrationTests
 {

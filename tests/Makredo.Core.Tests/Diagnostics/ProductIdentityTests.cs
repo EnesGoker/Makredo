@@ -5,7 +5,7 @@ using Makredo.Application.Abstractions;
 using Makredo.Infrastructure.Diagnostics;
 using Xunit;
 
-namespace Makredo.Tests;
+namespace Makredo.Core.Tests.Diagnostics;
 
 public sealed class ProductIdentityTests
 {

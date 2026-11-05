@@ -1,7 +1,7 @@
 using Makredo.Infrastructure.Migration;
 using Xunit;
 
-namespace Makredo.Migration.Tests;
+namespace Makredo.Core.Tests.Migration;
 
 public sealed class StagingCleanupTests
 {
