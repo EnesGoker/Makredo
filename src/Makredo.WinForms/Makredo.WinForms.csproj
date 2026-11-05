@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <AssemblyName>Makredo</AssemblyName>
+    <Product>Makredo</Product>
+    <Title>Makredo</Title>
+    <Company>Enes Göker</Company>
+    <Authors>Enes Göker</Authors>
+    <ApplicationIcon>Resources\Makredo.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Makredo.Application\Makredo.Application.csproj" />
+    <ProjectReference Include="..\Makredo.Domain\Makredo.Domain.csproj" />
+    <ProjectReference Include="..\Makredo.Infrastructure\Makredo.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

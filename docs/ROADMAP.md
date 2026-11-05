@@ -85,9 +85,8 @@ Hedef: Makredo adıyla, .NET 10 üzerinde, Mac'te çekirdek testleri çalışan 
 
 **T0.4 — .NET 10** `[S]`
 - Hedefler `net10.0` ve `net10.0-windows` olsun.
-- `global.json` 10.0.x SDK'yı `rollForward: latestFeature` ile sabitlesin.
 - Test paketlerini güncelle. Kullanılmayan `Newtonsoft.Json` paketini kaldır (F-028).
-- Windows dışında derlemenin ek parametre istememesi için `Directory.Build.props` içine `<EnableWindowsTargeting Condition="'$(OS)' != 'Windows_NT'">true</EnableWindowsTargeting>` ekle.
+- **T0.2'de tamamlandı:** `global.json` 10.0.x SDK'yı `rollForward: latestFeature` ile sabitliyor; `Directory.Build.props`, Windows dışındaki build'ler için `EnableWindowsTargeting=true` ayarını içeriyor (ADR-0002). T0.4'te yalnız framework ve paket dönüşümü kaldı.
 - **Kabul:** Mac'te düz `dotnet build -c Release` 0 uyarıyla geçiyor. `dotnet list package --vulnerable --include-transitive` boş dönüyor.
 
 **T0.5 — Platform katmanını ayır** `[M]`
@@ -110,9 +109,9 @@ Hedef: Makredo adıyla, .NET 10 üzerinde, Mac'te çekirdek testleri çalışan 
   - `windows-latest`: tüm testler, `dotnet format --verify-no-changes`, açık paket taraması.
   - `windows-11-arm`: tüm testler.
 - `.github/dependabot.yml` (NuGet ve GitHub Actions) ekle.
-- `.gitattributes` ekle (`*.cs` için `eol=crlf`, `.editorconfig` ile uyumlu) ve bir kez normalize et.
+- **T0.2'de tamamlandı:** `.gitattributes` metin/binary ve CRLF kurallarını tanımlıyor; `git add --renormalize .` uygulandı. T0.7'de yeniden ekleme/normalizasyon işi yok.
 - PR şablonu ekle (`AGENTS.md` §4'teki başlıklarla).
-- **Kabul:** Bir test PR'ında üç işin hepsi yeşil. Satır sonu normalizasyonu ayrı bir commit'te.
+- **Kabul:** Bir test PR'ında üç işin hepsi yeşil. T0.2'de yapılan satır sonu normalizasyonu `.gitattributes` ile korunuyor.
 
 **T0.8 — CI keşfi** `[S]` · ADR-003
 - GitHub'ın Windows makinesinde iki şeyi dene:
@@ -430,7 +429,7 @@ Hedef: Kritik bulguların hepsinin kapanması. Tuş takılı kalmamalı, makro h
 | F-012 | T3.4, T8.1 | F-029 | T0.7 |
 | F-013 | T1.1 | F-030 | T5.2 |
 | F-014 | T1.8 | F-031 | T2.5 |
-| F-015 | T1.5 | F-032 | T0.2, T0.4 |
+| F-015 | T1.5 | F-032 | T0.2 |
 | F-016 | T1.4 | F-033 | T2.5 |
 | F-017 | T2.4 | F-034 | T2.4 |
 
