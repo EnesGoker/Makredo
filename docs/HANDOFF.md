@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.2 — Ad dönüşümü ve yapı 🔒 | codex | `codex/T0.2-rename-and-layout` | Devam ediyor | Görev sahiplenildi. `MainForm` ve `AppShellLayoutProfile` kilitli. Sıradaki: kaynak/proje yolları ve adları, merkezi ürün adı, build ve statik doğrulama. |
+| T0.2 — Ad dönüşümü ve yapı 🔒 | codex | `codex/T0.2-rename-and-layout` | Devam ediyor | Beş proje `src/` ve `tests/` altında `Makredo.*` oldu; tek `Makredo.slnx` kaldı. Düz Release build 0 uyarı/hata. `.slnx` ve Mac build için SDK pini/Windows hedefleme ayarı T0.4'ten öne alındı (ADR-0002); framework'ler hâlâ .NET 8. Sıradaki: `ProductInfo.Name`, göç için eski veri yolunu koruma, regresyon testleri ve format doğrulama. `MainForm`/`AppShellLayoutProfile` kilitli. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
