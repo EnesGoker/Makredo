@@ -2,25 +2,24 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.6 doğrulandı, PR hazırlanıyor
+**Son güncelleme:** 2026-11-06 · codex · T0.6 incelemede ([PR #5](https://github.com/EnesGoker/Makredo/pull/5))
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1–T0.5 tamamlandı, T0.6 devam ediyor)
+- **Faz:** 0 — Kuruluş (T0.1–T0.5 tamamlandı, T0.6 incelemede)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** T0.6 için yok; T0.5 squash merge edildi (`001acea`).
+- **Engel:** Teknik engel yok; T0.6 [PR #5](https://github.com/EnesGoker/Makredo/pull/5) incelemesini bekliyor.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.6 — Test yapısı | codex | `codex/T0.6-test-structure` | Devam ediyor | Core/Windows ayrımı ve göç birleşimi tamamlandı. 108/108 eski metot korundu: 143 eski vaka → 154 (toolbar döngüsü Theory'de 12 satır, +11). Mac Core 120/120; Windows 34 vaka derlendi, koşmadı. Build 0 uyarı/hata, format ve sayım scripti geçti. Sıradaki: PR aç ve İncelemede yap. |
+| T0.6 — Test yapısı | codex | `codex/T0.6-test-structure` | İncelemede | [PR #5](https://github.com/EnesGoker/Makredo/pull/5): Core/Windows ayrımı ve göç birleşimi tamamlandı. 108/108 metot korundu; 143 → 154 vaka (+11 toolbar Theory keşfi). Mac Core 120/120; Windows 34 vaka derlendi, koşmadı. Build 0 uyarı/hata, format ve sayım scripti geçti. Tam eşleme, beklenti düzeltmeleri ve test-only paket gerekçesi PR'da. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.6** Test yapısı (aktif)
-2. **T0.7** CI
-3. **T0.8** CI keşfi
+1. **T0.7** CI
+2. **T0.8** CI keşfi
 
 Faz 0 içinde T0.3 ile T0.4, T0.2 bittikten sonra paralel yürüyebilir. Sıra ve bağımlılıklar `docs/ROADMAP.md`'de.
 
@@ -52,7 +51,7 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - Filtre/rapor ve yardımcı tipleri Application'a, AppStoragePaths Infrastructure.Persistence'e namespace/import dışında aynı gövdelerle taşındı; saf mantığın testleri Mac'te çalışıyor. MainForm yalnız import değişti, AppShellLayoutProfile aynı. Sınırlar ADR-0012'de.
 - Sabit Task.Delay/Thread.Sleep veya senkron task bekleme testlerde yok. Pause/resume mevcut navigation sinyaliyle, uçuşta gecikme regresyonu timer kayıt sinyali + FakeTimeProvider.Advance ile ilerler. MacroPlaybackService isteğe bağlı TimeProvider alır, varsayılan System aynı davranışı korur. Test-only Microsoft.Extensions.TimeProvider.Testing 10.0.0 eklendi; üretim paketleri değişmedi.
 - Core projelerde Win32 grep hâlâ boş (exit 1); Core test projesi yalnız Domain/Application/Infrastructure referanslıyor. Eski Makredo.Tests/Makredo.Migration.Tests projeleri çözümden kaldırıldı; friend assembly adları yenilendi.
-- Windows testleri, uygulama veya gerçek girdi çalıştırılmadı. CI T0.7'de kurulacak; derleme Windows runtime başarısı değildir. PR kontrol durumu PR açılınca kaydedilecek.
+- Windows testleri, uygulama veya gerçek girdi çalıştırılmadı. CI T0.7'de kurulacak; derleme Windows runtime başarısı değildir. `gh pr checks 5`: `no checks reported`; PR açık ve `MERGEABLE` / `CLEAN`.
 
 ## Öğrenilenler ve tuzaklar
 - Mac'te `net10.0-windows` testleri **çalışmaz**. Derlenir ama koşmaz. Windows testlerinin sonucu CI'dan alınır.
@@ -65,6 +64,7 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - Yaş tek başına staging sahipliği kanıtı değildir: bitişik exclusive lease aktif kopyayı yaşından bağımsız korur. Silme öncesi kaynak/hedef root ve alt bağlantıları da kontrol edilir; belirsizlikte temizlik yapılmaz.
 - Kütüphane durumu mutlak dosya yolları tutar; sadece byte kopyalama favori/son kullanım kayıtlarının UI tarafından budanmasına yol açar. Bu yüzden yalnız kopyadaki iç makro referansları yeniden köklendirilir; kaynak JSON değişmez.
 - T0.6: göç testleri ve UnixTheory artık `tests/Makredo.Core.Tests/Migration` altında, Infrastructure test seam'i Core.Tests'e açık. WinForms proje adı `Makredo.WinForms` olsa da gerçek AssemblyName `Makredo`; taşınan internal saf sınıfların UI friend adı bu olmalı. Kaynak kopyası linklemek yerine gerçek taşınabilir assembly test edilir.
+- T0.6 sayım scripti baseline `001acea` kaynaklarını `git show` ile okur; CI'da çalıştırılacaksa bu commit'i içeren history fetch edilmelidir. Kaynak sayımı Windows testlerini çalıştırmaz; Mac Core sonucu ayrıca raporlanır.
 - `.gitattributes` ve renormalizasyon T0.2'de tamamlandı; T0.7'nin işi değil. Index LF saklar, kapsanan çalışma dosyaları CRLF ve ikon/PNG binary kalır. ADR-0003–0010 yol haritasına ayrılmıştır; göç kararı ADR-0011'dir.
 
 ## Tamamlananlar
