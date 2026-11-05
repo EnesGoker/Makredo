@@ -1,6 +1,6 @@
 using Makredo.Domain.Models;
 
-namespace Makredo.WinForms.Controls;
+namespace Makredo.Application.Filters;
 
 internal sealed record EventListViewItem(
     int SourceIndex,

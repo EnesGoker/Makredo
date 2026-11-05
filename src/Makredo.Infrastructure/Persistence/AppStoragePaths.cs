@@ -1,6 +1,6 @@
 using Makredo.Domain;
 
-namespace Makredo.WinForms.Composition;
+namespace Makredo.Infrastructure.Persistence;
 
 internal sealed class AppStoragePaths
 {

@@ -2,7 +2,7 @@ using System.Globalization;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
 
-namespace Makredo.WinForms.Controls;
+namespace Makredo.Application.Filters;
 
 internal static class EventListFilterEngine
 {

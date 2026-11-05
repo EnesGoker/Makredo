@@ -1,5 +1,6 @@
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using Makredo.Application.Filters;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
 using Makredo.WinForms.Theme;

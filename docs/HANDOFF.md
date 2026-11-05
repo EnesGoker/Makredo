@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.6 — Test yapısı | codex | `codex/T0.6-test-structure` | Devam ediyor | Başlangıç: eski test envanteri çıkarılacak, Core/Windows ayrımı ve göç projesi birleşimi yapılacak. Hiçbir test kaybolmadan sayım kanıtı hazırlanacak; Windows testleri Mac'te koşulmayacak. |
+| T0.6 — Test yapısı | codex | `codex/T0.6-test-structure` | Devam ediyor | Saf filtre/rapor sınıfları Application, AppStoragePaths Infrastructure katmanına namespace/import dışında değişmeden taşındı (ADR-0012). Test ayrımı çalışma ağacında hazır; sıradaki commit: iki test projesi, fake zaman ve 108/108 metot sayım kanıtı. Windows testleri Mac'te koşulmayacak. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 

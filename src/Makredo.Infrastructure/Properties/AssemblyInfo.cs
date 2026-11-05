@@ -1,3 +1,6 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("Makredo.Migration.Tests")]
+[assembly: InternalsVisibleTo("Makredo.Core.Tests")]
+
+[assembly: InternalsVisibleTo("Makredo")]
+[assembly: InternalsVisibleTo("Makredo.Windows.Tests")]

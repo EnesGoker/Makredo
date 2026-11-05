@@ -1,4 +1,4 @@
-namespace Makredo.WinForms.Controls;
+namespace Makredo.Application.Filters;
 
 internal enum EventListRowInsight
 {

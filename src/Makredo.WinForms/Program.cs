@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Makredo.Infrastructure.Persistence;
 using Makredo.WinForms.Composition;
 using Makredo.WinForms.Composition.Migration;
 

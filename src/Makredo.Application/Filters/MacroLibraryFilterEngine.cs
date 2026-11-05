@@ -1,7 +1,7 @@
 using System.Globalization;
 using Makredo.Application.Abstractions;
 
-namespace Makredo.WinForms.Controls;
+namespace Makredo.Application.Filters;
 
 internal static class MacroLibraryFilterEngine
 {

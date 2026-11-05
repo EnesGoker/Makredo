@@ -1,6 +1,6 @@
 using Makredo.Application.Abstractions;
 
-namespace Makredo.WinForms.Controls;
+namespace Makredo.Application.Filters;
 
 internal sealed record MacroLibraryViewItem(
     MacroLibraryEntry Entry,

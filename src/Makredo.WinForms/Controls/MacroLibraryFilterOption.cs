@@ -1,3 +1,4 @@
+using Makredo.Application.Filters;
 namespace Makredo.WinForms.Controls;
 
 internal sealed record MacroLibraryFilterOption(
