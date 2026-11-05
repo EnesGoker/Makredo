@@ -2,24 +2,24 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.4 incelemede ([PR #2](https://github.com/EnesGoker/Makredo/pull/2))
+**Son güncelleme:** 2026-11-06 · codex · T0.3 başladı
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1/T0.2 tamamlandı, T0.4 incelemede)
+- **Faz:** 0 — Kuruluş (T0.1/T0.2/T0.4 tamamlandı, T0.3 devam ediyor)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** T0.5 için T0.4 PR'ının birleşmesi bekleniyor; T0.3 paralel yürüyebilir.
+- **Engel:** T0.3 için yok; T0.4 squash merge edildi (`e1483b8`).
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.4 — .NET 10 | codex | `codex/T0.4-dotnet-10` | İncelemede | [PR #2](https://github.com/EnesGoker/Makredo/pull/2). Release build 0 uyarı/hata; format ve transitif güvenlik taraması geçti. Taşınabilir regresyon net10.0'da 1/1 geçti; 67 test derlendi. PR'da DPI/PInvoke/nullable/WFO1000/test adapter Windows izleme listesi var. SDK/hedefleme/ortak props ve depolama/göç kodu değişmedi. Windows testleri T0.7'ye bırakıldı. Enes squash merge yapacak. |
+| T0.3 — Veri klasörü göçü | codex | `codex/T0.3-data-migration` | Devam ediyor | Görev sahiplenildi. Sıradaki: taşınabilir geçici-klasör/rename göçü, Mac'te çalışan geçici klasör testleri ve ince WinForms çağrısı. Kaynak korunacak, logs atlanacak, hedef varsa üzerine yazılmayacak; kısayol değerleri T1.5'e kadar değişmeyecek. Gerçek kullanıcı veri klasörlerine erişilmedi. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.3** Veri klasörü göçü (T0.4 ile paralel yürüyebilir)
-2. **T0.5** Platform katmanını ayır (T0.4 PR'ı birleştikten sonra)
+1. **T0.3** Veri klasörü göçü (aktif)
+2. **T0.5** Platform katmanını ayır
 3. **T0.6** Test yapısı
 4. **T0.7** CI
 
@@ -65,3 +65,4 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 |---|---|---|---|
 | T0.1 — İçe aktarma | PR yok (Enes onayı); [main'de import + kit](https://github.com/EnesGoker/Makredo/commits/main/) | 2026-11-05 | codex |
 | T0.2 — Ad dönüşümü ve yapı | [PR #1](https://github.com/EnesGoker/Makredo/pull/1), squash merge `73dd5c0` | 2026-11-06 | codex |
+| T0.4 — .NET 10 | [PR #2](https://github.com/EnesGoker/Makredo/pull/2), squash merge `e1483b8` | 2026-11-06 | codex |
