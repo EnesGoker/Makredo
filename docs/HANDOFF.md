@@ -2,23 +2,23 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.6 incelemede ([PR #5](https://github.com/EnesGoker/Makredo/pull/5))
+**Son güncelleme:** 2026-11-06 · codex · T0.7 başladı
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1–T0.5 tamamlandı, T0.6 incelemede)
+- **Faz:** 0 — Kuruluş (T0.1–T0.6 tamamlandı, T0.7 devam ediyor)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** Teknik engel yok; T0.6 [PR #5](https://github.com/EnesGoker/Makredo/pull/5) incelemesini bekliyor.
+- **Engel:** T0.7 için yok; T0.6 squash merge edildi (`462c32c`).
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.6 — Test yapısı | codex | `codex/T0.6-test-structure` | İncelemede | [PR #5](https://github.com/EnesGoker/Makredo/pull/5): Core/Windows ayrımı ve göç birleşimi tamamlandı. 108/108 metot korundu; 143 → 154 vaka (+11 toolbar Theory keşfi). Mac Core 120/120; Windows 34 vaka derlendi, koşmadı. Build 0 uyarı/hata, format ve sayım scripti geçti. Tam eşleme, beklenti düzeltmeleri ve test-only paket gerekçesi PR'da. |
+| T0.7 — CI | codex | `codex/T0.7-ci` | Devam ediyor | Başlangıç: Ubuntu/Core, Windows x64 ve ARM64 işlerini, TRX sayım kontrolünü, Dependabot ve PR şablonunu kur. Windows hatalarını atlama/beklenti değiştirme; kanıt ve görev tahminiyle listele, gerçek hatayı ayrı commit'te düzelt. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.7** CI
+1. **T0.7** CI (aktif)
 2. **T0.8** CI keşfi
 
 Faz 0 içinde T0.3 ile T0.4, T0.2 bittikten sonra paralel yürüyebilir. Sıra ve bağımlılıklar `docs/ROADMAP.md`'de.
@@ -75,3 +75,4 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 | T0.4 — .NET 10 | [PR #2](https://github.com/EnesGoker/Makredo/pull/2), squash merge `e1483b8` | 2026-11-06 | codex |
 | T0.3 — Veri klasörü göçü | [PR #3](https://github.com/EnesGoker/Makredo/pull/3), squash merge `1dbe02ed93abdba0ac89de920d7207352dea5faf` | 2026-11-06 | codex |
 | T0.5 — Platform katmanı | [PR #4](https://github.com/EnesGoker/Makredo/pull/4), squash merge `001acea3ce5050a31ff72499648cadea3a2bdfa0` | 2026-11-06 | codex |
+| T0.6 — Test yapısı | [PR #5](https://github.com/EnesGoker/Makredo/pull/5), squash merge `462c32cba5eee136b841836b6c02e9baa1a1adcb` | 2026-11-06 | codex |
