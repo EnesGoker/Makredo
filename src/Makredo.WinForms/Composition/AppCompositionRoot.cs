@@ -59,7 +59,7 @@ internal sealed class AppCompositionRoot : IDisposable
         _disposables = disposables;
     }
 
-    public static AppCompositionRoot Create(CancellationToken cancellationToken = default)
+    public static AppStoragePaths PrepareDefaultStorage(CancellationToken cancellationToken = default)
     {
         AppStoragePaths storagePaths = AppStoragePaths.CreateDefault();
         string legacyDirectoryPath = Path.Combine(
@@ -72,7 +72,7 @@ internal sealed class AppCompositionRoot : IDisposable
             storagePaths.RootDirectoryPath,
             cancellationToken);
 
-        return Create(storagePaths);
+        return storagePaths;
     }
 
     internal static AppCompositionRoot Create(

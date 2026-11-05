@@ -13,6 +13,10 @@
   bir kez kopyalanır. Kaynak veriler korunur, günlükler taşınmaz ve mevcut
   Makredo verilerinin üzerine yazılmaz. Yarım kalan kopyalar yeniden denenir;
   favori ve son kullanım kayıtları yeni makro konumuna uyarlanır.
+- Göç başarısızsa Türkçe hata mesajı gösterilir ve uygulama başlatılmaz;
+  hata ayrıntıları mümkünse geçici klasöre yazılır.
+- Etkin olmayan, 24 saatten eski göç geçici klasörleri temizlenir;
+  açık işlem kilidi bulunan ve yeni klasörler korunur.
 
 ### Changed
 
@@ -25,3 +29,7 @@
   Makredo directory. Source data is preserved, logs are excluded, and existing
   Makredo data is never overwritten. Interrupted copies are retried; favorites
   and recently used records are updated to the new macro location.
+- Migration failures show a Turkish error message and stop startup; diagnostic
+  details are written to the temporary directory when possible.
+- Inactive migration staging copies older than 24 hours are reclaimed;
+  active leased attempts and fresh directories are preserved.

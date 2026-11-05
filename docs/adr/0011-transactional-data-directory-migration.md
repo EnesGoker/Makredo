@@ -40,7 +40,21 @@ the existing reader to handle. File I/O failures still abort publication.
 On failure or cancellation, clean up only this attempt's staging directory on a
 best-effort basis and propagate the failure. Startup must not continue with an
 empty final directory. Abandoned staging directories are never treated as the
-final destination, and other attempts' staging directories are not deleted.
+final destination. WinForms catches migration preparation errors before creating
+the composition root, displays a Turkish message explaining that the original
+legacy data remains intact and the legacy application should be closed, and
+exits with failure. Writing the exception details to a unique file in the system
+temporary directory is best-effort; a logging failure must not hide the message.
+
+Hold an exclusive lease in a sibling lock file for each new staging attempt.
+Before an attempt, remove only matching GUID-named staging directories whose
+last modification time is more than 24 hours old, after acquiring their lease.
+Recheck age while holding the lease. Keep fresh, future-dated, active, malformed,
+and reparse-point candidates. Cleanup errors must not block a valid migration.
+Use `TimeProvider` for the age threshold and do not read or delete legacy/final
+data as part of cleanup. Validate protected root aliases before cleanup and skip
+cleanup when an existing source or destination is a reparse point. Conservatively
+protect case variants of both paths on all filesystems.
 
 Add a dedicated `net10.0` migration test project using the existing xUnit stack.
 Use real temporary directories and an internal copy-file fault seam for reliable
@@ -53,7 +67,8 @@ always wins, including when another process creates the destination during a
 migration. Retrying starts from a fresh staging directory and current source data.
 
 A hard process termination or a failed cleanup can leave a staging directory.
-Later attempts ignore it and retry; automatic removal of another process's
-staging data is intentionally avoided. Files are copied individually, so the
+Later attempts retry independently and reclaim eligible inactive copies after
+24 hours. The sibling lease allows atomic directory publication while preventing
+another instance from deleting an active copy. Files are copied individually, so the
 legacy application should be closed while migration runs; a read or sharing
 failure aborts the attempt without publishing partial data.

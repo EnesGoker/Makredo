@@ -16,15 +16,24 @@ public sealed class DataDirectoryMigrator
     ];
 
     private readonly Action<string, string, CancellationToken> _copyFile;
+    private readonly TimeProvider _timeProvider;
 
     public DataDirectoryMigrator()
         : this(CopyFile)
     {
     }
 
-    internal DataDirectoryMigrator(Action<string, string, CancellationToken> copyFile)
+    public DataDirectoryMigrator(TimeProvider timeProvider)
+        : this(CopyFile, timeProvider ?? throw new ArgumentNullException(nameof(timeProvider)))
+    {
+    }
+
+    internal DataDirectoryMigrator(
+        Action<string, string, CancellationToken> copyFile,
+        TimeProvider? timeProvider = null)
     {
         _copyFile = copyFile ?? throw new ArgumentNullException(nameof(copyFile));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public DataDirectoryMigrationResult Migrate(
@@ -52,23 +61,68 @@ public sealed class DataDirectoryMigrator
                 nameof(destinationDirectoryPath));
         }
 
-        if (GetAttributesIfExists(destinationPath) is not null)
+        FileAttributes? destinationAttributes = GetAttributesIfExists(destinationPath);
+        bool destinationExists = destinationAttributes is not null;
+        if (destinationAttributes is not null
+            && (destinationAttributes.Value & FileAttributes.ReparsePoint) != 0)
+        {
+            // A destination link can target a staging-shaped directory; do not clean its target.
+            return DataDirectoryMigrationResult.DestinationExists;
+        }
+
+        FileAttributes? sourceAttributes;
+        if (destinationExists)
+        {
+            try
+            {
+                sourceAttributes = GetAttributesIfExists(sourcePath);
+                if (sourceAttributes is not null)
+                {
+                    EnsureDirectory(sourcePath, sourceAttributes.Value);
+                }
+            }
+            catch (IOException)
+            {
+                // Existing modern data must still open when the unused legacy root is unsafe.
+                return DataDirectoryMigrationResult.DestinationExists;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return DataDirectoryMigrationResult.DestinationExists;
+            }
+        }
+        else
+        {
+            sourceAttributes = GetAttributesIfExists(sourcePath);
+            if (sourceAttributes is not null)
+            {
+                // Reject a linked source before cleanup can see the directory behind that link.
+                EnsureDirectory(sourcePath, sourceAttributes.Value);
+            }
+        }
+
+        MigrationStagingCleanup.RemoveAbandonedDirectories(
+            sourcePath,
+            destinationPath,
+            _timeProvider,
+            cancellationToken);
+
+        if (destinationExists)
         {
             return DataDirectoryMigrationResult.DestinationExists;
         }
 
-        FileAttributes? sourceAttributes = GetAttributesIfExists(sourcePath);
         if (sourceAttributes is null)
         {
             return DataDirectoryMigrationResult.SourceMissing;
         }
 
-        EnsureDirectory(sourcePath, sourceAttributes.Value);
-
         string stagingPath = Path.Combine(
             destinationParent,
             $".{Path.GetFileName(destinationPath)}.migration-{Guid.NewGuid():N}");
 
+        // The lease is adjacent to the staging tree so it does not block its final rename on Windows.
+        using MigrationStagingLease lease = MigrationStagingLease.AcquireNew(stagingPath);
         try
         {
             Directory.CreateDirectory(stagingPath);
