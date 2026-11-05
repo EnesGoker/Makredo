@@ -19,7 +19,7 @@ tested tool source `c0ebeb3` at PR #8's synthetic merge commit
 
 | Question | Windows x64 (`windows-latest`) | Windows ARM64 (`windows-11-arm`) |
 |---|---|---|
-| (a) Show a WinForms form and obtain a validated screen PNG? | **Demonstrated.** Actual screen pixels matched both form markers in the first attempt. | **Not demonstrated on this runner desktop.** The form reported visible, handle-created and painted, but all ten captures showed Windows privacy setup instead of the form markers. PNG creation itself succeeded. |
+| (a) Show a WinForms form and obtain a validated screen PNG? | **Demonstrated.** Actual screen pixels matched both form markers in the first attempt. | **Not demonstrated on this runner desktop.** The form reported visible, handle-created and painted, but markers did not match in ten attempts; the retained PNG showed Windows privacy setup. PNG creation itself succeeded. |
 | (b) Install low-level keyboard/mouse hooks and capture SendInput? | **Yes.** Both hooks installed; four tagged inputs accepted and observed with injected flags. | **Yes, natively on ARM64.** Same hook, input and flag evidence. |
 
 Evidence artifacts:
@@ -42,15 +42,17 @@ desktop, not a guarantee about future images.
 ### Native input evidence
 
 On both native process architectures, `INPUT` was 40 bytes. `SendInput` accepted
-4/4 events: F24 down, F24 up, and two relative one-pixel mouse moves without
-clicks. The hooks captured only events carrying the tool's `dwExtraInfo` marker
+4/4 events: F24 down, F24 up, and two relative mouse MOVE requests
+(`dx=+1` and `dx=-1`) without clicks. The captured mouse coordinates remained
+unchanged in both reports; the evidence is event delivery, not a measured cursor
+displacement. The hooks captured only events carrying the tool's `dwExtraInfo` marker
 `0x4D4B5238`:
 
 | Event | Message | Raw flags | Interpretation |
 |---|---|---|---|
 | F24 down | `WM_KEYDOWN` (`0x0100`) | `0x10` | `LLKHF_INJECTED` set |
 | F24 up | `WM_KEYUP` (`0x0101`) | `0x90` | Injected plus key-up flag |
-| Both mouse moves | `WM_MOUSEMOVE` (`0x0200`) | `0x01` | `LLMHF_INJECTED` set |
+| Both mouse MOVE requests | `WM_MOUSEMOVE` (`0x0200`) | `0x01` | `LLMHF_INJECTED` set |
 
 The additional cleanup F24 key-up was accepted (1/1). Both hooks were unhooked
 successfully, the original cursor position was restored, and both reports had
