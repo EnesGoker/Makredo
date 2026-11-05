@@ -677,13 +677,13 @@ internal sealed class EventListControl : UserControl
             return;
         }
 
-        if (e.ColumnIndex == _eventGridView.Columns["#"].Index)
+        if (e.ColumnIndex == _eventGridView.Columns["#"]!.Index)
         {
             PaintIndexCell(e);
             return;
         }
 
-        if (e.ColumnIndex != _eventGridView.Columns["Type"].Index)
+        if (e.ColumnIndex != _eventGridView.Columns["Type"]!.Index)
         {
             return;
         }
