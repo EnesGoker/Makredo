@@ -2,30 +2,30 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.7 incelemede ([PR #6](https://github.com/EnesGoker/Makredo/pull/6))
+**Son güncelleme:** 2026-11-06 · codex · T0.8 başladı
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1–T0.6 tamamlandı, T0.7 incelemede)
+- **Faz:** 0 — Kuruluş (T0.1–T0.7 tamamlandı, T0.8 devam ediyor)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** Teknik engel yok; T0.7 [PR #6](https://github.com/EnesGoker/Makredo/pull/6) incelemesini bekliyor.
+- **Engel:** T0.8 için yok; main yalnız squash PR ve üç zorunlu CI kontrolüyle korunuyor.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.7 — CI | codex | `codex/T0.7-ci` | İncelemede | [PR #6](https://github.com/EnesGoker/Makredo/pull/6): [42128747961](https://github.com/EnesGoker/Makredo/actions/runs/42128747961) üç iş yeşil. Ubuntu Core 120/120; Windows x64/ARM64 Core 107 geçti + mevcut 5 Unix skip, Windows 34/34 (146 sonuç). TRX kaynak/metot/vaka denetimi ve artifact var; Windows format/açık paket taraması geçti. İlk koşudaki T0.3 fixture yol hatası ayrı 0c713b3, TRX okuyucu düzeltmesi ayrı 9f503c1; assertion/Skip/ürün kodu değişmedi. |
+| T0.8 — CI keşfi | codex | `codex/T0.8-ci-discovery` | Devam ediyor | Başlangıç: ayrı araç/workflow ile Windows x64/ARM64 WinForms PNG ve low-level hook + SendInput fizibilitesi. Deney GITHUB_ACTIONS=true dışında hemen çıkacak; normal test suite'ine girmez. Ürün koduna dokunulmayacak. Sonuç/kanıt ve Faz 1 kararı ADR-0003'e yazılacak. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.8** CI keşfi
+1. **T0.8** CI keşfi (aktif)
 
 Faz 0 içinde T0.3 ile T0.4, T0.2 bittikten sonra paralel yürüyebilir. Sıra ve bağımlılıklar `docs/ROADMAP.md`'de.
 
 ## Enes'in yapacakları (manuel)
 - [x] M0.1 Store geliştirici hesabı ve "Makredo" ad rezervasyonu — Enes, 5 Kasım 2026
 - [x] M0.2 GitHub `EnesGoker/Makredo` (public ve başlangıçta boş olduğu doğrulandı)
-- [ ] M0.3 Branch koruması, secret scanning, Dependabot alerts (T0.7'den sonra)
+- [x] M0.3 Branch koruması, secret scanning, Dependabot alerts — Enes, 6 Kasım 2026; main yalnız squash PR, üç CI kontrolü zorunlu
 - [ ] M0.4 Azure for Students hesabı (Faz 4'ten önce)
 - [ ] K1 / K2 / K3 manuel kontroller (ROADMAP'te)
 
@@ -76,3 +76,4 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 | T0.3 — Veri klasörü göçü | [PR #3](https://github.com/EnesGoker/Makredo/pull/3), squash merge `1dbe02ed93abdba0ac89de920d7207352dea5faf` | 2026-11-06 | codex |
 | T0.5 — Platform katmanı | [PR #4](https://github.com/EnesGoker/Makredo/pull/4), squash merge `001acea3ce5050a31ff72499648cadea3a2bdfa0` | 2026-11-06 | codex |
 | T0.6 — Test yapısı | [PR #5](https://github.com/EnesGoker/Makredo/pull/5), squash merge `462c32cba5eee136b841836b6c02e9baa1a1adcb` | 2026-11-06 | codex |
+| T0.7 — CI | [PR #6](https://github.com/EnesGoker/Makredo/pull/6), squash merge `e2f7732c33cc72dcd155f6b98cfda238b0ae44a8` | 2026-11-06 | codex |
