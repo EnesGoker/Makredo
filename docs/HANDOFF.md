@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.4 — .NET 10 | codex | `codex/T0.4-dotnet-10` | Devam ediyor | Görev sahiplenildi. Sıradaki: framework/test paketleri dönüşümü, Newtonsoft kaldırma (F-028), build/format/paket güvenlik taraması. SDK pini ve `EnableWindowsTargeting` korunacak. `Directory.Build.props` yalnız bu görevde; `AppStoragePaths`/`Migration/` T0.3'e ayrıldı. |
+| T0.4 — .NET 10 | codex | `codex/T0.4-dotnet-10` | Devam ediyor | Beş hedef net10.0/net10.0-windows oldu. Test SDK 18.11.0, xUnit 2.9.3, runner 4.0.1; doğrudan Newtonsoft kaldırıldı (F-028). İlk build'de 45 WFO1000 ve iki CS8602 uyumluluk hatası var; sıradaki bunların dar kapsamlı çözümü ve kabul kontrolleri. SDK pini/hedefleme ayarı ve `Directory.Build.props` değişmedi; depolama/göç koduna dokunulmadı. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
