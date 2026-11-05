@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.7 — CI | codex | `codex/T0.7-ci` | Devam ediyor | Başlangıç: Ubuntu/Core, Windows x64 ve ARM64 işlerini, TRX sayım kontrolünü, Dependabot ve PR şablonunu kur. Windows hatalarını atlama/beklenti değiştirme; kanıt ve görev tahminiyle listele, gerçek hatayı ayrı commit'te düzelt. |
+| T0.7 — CI | codex | `codex/T0.7-ci` | Devam ediyor | Üç iş, SHA pinli actions/*, salt-okunur token, PR concurrency, global.json SDK, TRX artifact ve eksiksiz test sayımı hazır. Dependabot/PR şablonu ve açık paket JSON kapısı eklendi; script self-testleri geçti. Sıradaki: PR'da ilk gerçek Windows x64/ARM64 koşusu; hataları atlamadan raporla/düzelt. Mevcut 5 UnixTheory Windows dışlaması korunur, yeni Skip yok. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
