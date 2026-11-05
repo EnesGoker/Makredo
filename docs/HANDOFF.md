@@ -2,24 +2,24 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.2 incelemede ([PR #1](https://github.com/EnesGoker/Makredo/pull/1))
+**Son güncelleme:** 2026-11-06 · codex · T0.4 başladı
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1 tamamlandı, T0.2 incelemede)
+- **Faz:** 0 — Kuruluş (T0.1/T0.2 tamamlandı, T0.4 devam ediyor)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** T0.3/T0.4 için T0.2 PR'ının birleşmesi bekleniyor.
+- **Engel:** T0.4 için yok; T0.2 squash merge edildi. T0.3 paralel yürüyebilir.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.2 — Ad dönüşümü ve yapı 🔒 | codex | `codex/T0.2-rename-and-layout` | İncelemede | [PR #1](https://github.com/EnesGoker/Makredo/pull/1). Yapı, merkezi ürün adı ve `.gitattributes`/renormalizasyon tamam; son format/Release build geçti. 67 test derlendi, taşınabilir regresyon 1/1 geçti, `Makredo.exe` doğrulandı. Windows suite/manuel arayüz doğrulanmadı; CI henüz yok. Enes squash merge yapacak. `MainForm`/`AppShellLayoutProfile` kilidi PR birleşene kadar sürer. |
+| T0.4 — .NET 10 | codex | `codex/T0.4-dotnet-10` | Devam ediyor | Görev sahiplenildi. Sıradaki: framework/test paketleri dönüşümü, Newtonsoft kaldırma (F-028), build/format/paket güvenlik taraması. SDK pini ve `EnableWindowsTargeting` korunacak. `Directory.Build.props` yalnız bu görevde; `AppStoragePaths`/`Migration/` T0.3'e ayrıldı. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.3** Veri klasörü göçü (T0.2 PR'ı birleştikten sonra)
-2. **T0.4** .NET 10 (T0.2 PR'ı birleştikten sonra; SDK pini ve Mac hedefleme ayarı zaten yapıldı, framework/paket dönüşümü kaldı)
+1. **T0.3** Veri klasörü göçü (T0.4 ile paralel yürüyebilir)
+2. **T0.4** .NET 10 (aktif; framework/paket dönüşümü)
 3. **T0.5** Platform katmanını ayır
 4. **T0.6** Test yapısı
 
@@ -65,3 +65,4 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 | Görev | PR | Tarih | Ajan |
 |---|---|---|---|
 | T0.1 — İçe aktarma | PR yok (Enes onayı); [main'de import + kit](https://github.com/EnesGoker/Makredo/commits/main/) | 2026-11-05 | codex |
+| T0.2 — Ad dönüşümü ve yapı | [PR #1](https://github.com/EnesGoker/Makredo/pull/1), squash merge `73dd5c0` | 2026-11-06 | codex |
