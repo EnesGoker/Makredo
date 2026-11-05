@@ -2,23 +2,23 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.3 incelemede ([PR #3](https://github.com/EnesGoker/Makredo/pull/3))
+**Son güncelleme:** 2026-11-06 · codex · T0.5 başladı
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1/T0.2/T0.4 tamamlandı, T0.3 incelemede)
+- **Faz:** 0 — Kuruluş (T0.1–T0.4 tamamlandı, T0.5 devam ediyor)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** Teknik engel yok; T0.3 [PR #3](https://github.com/EnesGoker/Makredo/pull/3) Enes'in inceleme/birleştirmesini bekliyor.
+- **Engel:** T0.5 için yok; T0.3 squash merge edildi (`1dbe02e`).
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.3 — Veri klasörü göçü | codex | `codex/T0.3-data-migration` | İncelemede | [PR #3](https://github.com/EnesGoker/Makredo/pull/3) düzeltildi: göç hatasında Türkçe mesaj + best-effort geçici tanı + exit code 1; logger/store kurulmaz. >24 saatlik etkin olmayan staging temizliği lease/root/child bağlantı korumalı. Mac 65/65, Release build 0 uyarı/hata ve format geçti. 11 yeni Windows startup vakası derlendi, çalıştırılmadı. Gerçek veri klasörlerine erişilmedi. |
+| T0.5 — Platform katmanı | codex | `codex/T0.5-platform-layer` | Devam ediyor | Görev sahiplenildi. Sıradaki: Null/Default kullanım kanıtı, hook/interop/hotkey taşıma ve proje referansları. Davranış değişmeyecek; MainForm/AppShellLayoutProfile yalnız using/namespace için değişebilir. Mac göç testleri ve build/format doğrulanacak. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.5** Platform katmanını ayır
+1. **T0.5** Platform katmanını ayır (aktif)
 2. **T0.6** Test yapısı
 3. **T0.7** CI
 4. **T0.8** CI keşfi
@@ -74,3 +74,4 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 | T0.1 — İçe aktarma | PR yok (Enes onayı); [main'de import + kit](https://github.com/EnesGoker/Makredo/commits/main/) | 2026-11-05 | codex |
 | T0.2 — Ad dönüşümü ve yapı | [PR #1](https://github.com/EnesGoker/Makredo/pull/1), squash merge `73dd5c0` | 2026-11-06 | codex |
 | T0.4 — .NET 10 | [PR #2](https://github.com/EnesGoker/Makredo/pull/2), squash merge `e1483b8` | 2026-11-06 | codex |
+| T0.3 — Veri klasörü göçü | [PR #3](https://github.com/EnesGoker/Makredo/pull/3), squash merge `1dbe02ed93abdba0ac89de920d7207352dea5faf` | 2026-11-06 | codex |
