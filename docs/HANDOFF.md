@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.7 — CI | codex | `codex/T0.7-ci` | Devam ediyor | Üç iş, SHA pinli actions/*, salt-okunur token, PR concurrency, global.json SDK, TRX artifact ve eksiksiz test sayımı hazır. Dependabot/PR şablonu ve açık paket JSON kapısı eklendi; script self-testleri geçti. Sıradaki: PR'da ilk gerçek Windows x64/ARM64 koşusu; hataları atlamadan raporla/düzelt. Mevcut 5 UnixTheory Windows dışlaması korunur, yeni Skip yok. |
+| T0.7 — CI | codex | `codex/T0.7-ci` | Devam ediyor | [PR #6](https://github.com/EnesGoker/Makredo/pull/6), ilk koşu 42128392866: Ubuntu yeşil; Windows x64/ARM64 Windows.Tests 34/34. Core'da tek T0.3 fixture hatası: ExistingDestinationStillAllowsCleanupWithoutChangingUserData, macros/kept.json ile Windows macros\kept.json dizgesi farklı. Assertion aynı, fixture Path.Combine ile düzeltildi. Ayrı CI düzeltmesi: VSTest skip sayaç biçimi; sıradaki yeni SHA'da üç yeşil iş. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 

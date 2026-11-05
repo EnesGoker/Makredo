@@ -69,7 +69,7 @@ public sealed class StagingCleanupTests
     {
         using var sandbox = new CleanupSandbox();
         string sourceFile = CleanupSandbox.WriteText(sandbox.SourcePath, "playback-settings.json", "legacy settings");
-        string destinationFile = CleanupSandbox.WriteText(sandbox.DestinationPath, "macros/kept.json", "existing user data");
+        string destinationFile = CleanupSandbox.WriteText(sandbox.DestinationPath, Path.Combine("macros", "kept.json"), "existing user data");
         DateTime sourceWriteTime = File.GetLastWriteTimeUtc(sourceFile);
         DateTime destinationWriteTime = File.GetLastWriteTimeUtc(destinationFile);
         string stagingPath = sandbox.CreateStaging(TimeSpan.FromDays(2));
