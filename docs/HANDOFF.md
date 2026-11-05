@@ -2,23 +2,23 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.5 incelemede ([PR #4](https://github.com/EnesGoker/Makredo/pull/4))
+**Son güncelleme:** 2026-11-06 · codex · T0.6 başladı
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1–T0.4 tamamlandı, T0.5 incelemede)
+- **Faz:** 0 — Kuruluş (T0.1–T0.5 tamamlandı, T0.6 devam ediyor)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** Teknik engel yok; T0.5 [PR #4](https://github.com/EnesGoker/Makredo/pull/4) incelemesini bekliyor.
+- **Engel:** T0.6 için yok; T0.5 squash merge edildi (`001acea`).
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.5 — Platform katmanı | codex | `codex/T0.5-platform-layer` | İncelemede | [PR #4](https://github.com/EnesGoker/Makredo/pull/4): Beş adapter Windows projesine taşındı; dört kullanılmayan Null/Default silindi, NullAppLogger korundu. Grep kanıtları ve proje referansları PR'da. Build 0 uyarı/hata, format ve Mac 65/65 geçti; Core Win32 grep boş. Gövdeler namespace/import dışı aynı, MainForm/Profile değişmedi. Windows testleri koşmadı; CI T0.7'de. |
+| T0.6 — Test yapısı | codex | `codex/T0.6-test-structure` | Devam ediyor | Başlangıç: eski test envanteri çıkarılacak, Core/Windows ayrımı ve göç projesi birleşimi yapılacak. Hiçbir test kaybolmadan sayım kanıtı hazırlanacak; Windows testleri Mac'te koşulmayacak. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.6** Test yapısı
+1. **T0.6** Test yapısı (aktif)
 2. **T0.7** CI
 3. **T0.8** CI keşfi
 
@@ -74,3 +74,4 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 | T0.2 — Ad dönüşümü ve yapı | [PR #1](https://github.com/EnesGoker/Makredo/pull/1), squash merge `73dd5c0` | 2026-11-06 | codex |
 | T0.4 — .NET 10 | [PR #2](https://github.com/EnesGoker/Makredo/pull/2), squash merge `e1483b8` | 2026-11-06 | codex |
 | T0.3 — Veri klasörü göçü | [PR #3](https://github.com/EnesGoker/Makredo/pull/3), squash merge `1dbe02ed93abdba0ac89de920d7207352dea5faf` | 2026-11-06 | codex |
+| T0.5 — Platform katmanı | [PR #4](https://github.com/EnesGoker/Makredo/pull/4), squash merge `001acea3ce5050a31ff72499648cadea3a2bdfa0` | 2026-11-06 | codex |
