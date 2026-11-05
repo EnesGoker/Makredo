@@ -2,24 +2,23 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.7 başladı
+**Son güncelleme:** 2026-11-06 · codex · T0.7 incelemede ([PR #6](https://github.com/EnesGoker/Makredo/pull/6))
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1–T0.6 tamamlandı, T0.7 devam ediyor)
+- **Faz:** 0 — Kuruluş (T0.1–T0.6 tamamlandı, T0.7 incelemede)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** T0.7 için yok; T0.6 squash merge edildi (`462c32c`).
+- **Engel:** Teknik engel yok; T0.7 [PR #6](https://github.com/EnesGoker/Makredo/pull/6) incelemesini bekliyor.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.7 — CI | codex | `codex/T0.7-ci` | Devam ediyor | [PR #6](https://github.com/EnesGoker/Makredo/pull/6), ilk koşu 42128392866: Ubuntu yeşil; Windows x64/ARM64 Windows.Tests 34/34. Core'da tek T0.3 fixture hatası: ExistingDestinationStillAllowsCleanupWithoutChangingUserData, macros/kept.json ile Windows macros\kept.json dizgesi farklı. Assertion aynı, fixture Path.Combine ile düzeltildi. Ayrı CI düzeltmesi: VSTest skip sayaç biçimi; sıradaki yeni SHA'da üç yeşil iş. |
+| T0.7 — CI | codex | `codex/T0.7-ci` | İncelemede | [PR #6](https://github.com/EnesGoker/Makredo/pull/6): [42128747961](https://github.com/EnesGoker/Makredo/actions/runs/42128747961) üç iş yeşil. Ubuntu Core 120/120; Windows x64/ARM64 Core 107 geçti + mevcut 5 Unix skip, Windows 34/34 (146 sonuç). TRX kaynak/metot/vaka denetimi ve artifact var; Windows format/açık paket taraması geçti. İlk koşudaki T0.3 fixture yol hatası ayrı 0c713b3, TRX okuyucu düzeltmesi ayrı 9f503c1; assertion/Skip/ürün kodu değişmedi. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.7** CI (aktif)
-2. **T0.8** CI keşfi
+1. **T0.8** CI keşfi
 
 Faz 0 içinde T0.3 ile T0.4, T0.2 bittikten sonra paralel yürüyebilir. Sıra ve bağımlılıklar `docs/ROADMAP.md`'de.
 
@@ -43,18 +42,18 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - T0.3 düzeltmesi yalnız göç/hazırlık hatasını WinForms'ta yakalar; mesaj ve best-effort geçici tanı sonrası uygulama başlamaz. Diğer composition/logger kurulum hatalarının genel işlenmesi mevcut F-017/T2.4 kapsamındadır.
 - T0.5: Hook/SendInput davranışları taşınırken değiştirilmedi. Basılı girdilerin bırakılması F-001/T1.2, fiziksel acil durdurma F-002/T1.6 kapsamındadır; yeni yollar `src/Makredo.Platform.Windows/Hooks` ve `Interop` altındadır.
 
-## Son doğrulama — T0.6
-- `dotnet build -c Release`: **0 uyarı, 0 hata**; yedi proje, Windows testleri dahil derlendi. `dotnet format --verify-no-changes`: geçti.
-- `dotnet test tests/Makredo.Core.Tests -c Release`: Mac'te **120 geçti, 0 başarısız, 0 atlanan**. Göç projesinin 65 vakası Core'a birleşti.
-- `python3 scripts/verify-test-migration.py`: **108/108 eski metot korundu**; 62 Program + 34 göç + 12 regresyon metodu. Eski 143 vaka → 154: yalnız toolbar'ın mevcut 3×4 döngüsü 12 ayrı Theory satırına dönüştü (+11). Core 89 metot/120 vaka; Windows 19 metot/34 vaka. [Tam eşleme](testing/T0.6-test-map.md) her eski adı ve yeni yolu listeler; eski InlineData ve UnixTheory platform koşulları korundu.
-- Özel Expect kaldırıldı; xUnit Assert doğrudan kullanılır. Koleksiyon boyutlarında eşdeğer Single/Empty kullanıldı, analyzer bastırılmadı. İki eski beklenti düzeltildi: `adayi` → `adayı`; Expanded/2× başlık yüksekliği 108 → 80 (üretimde `Scale(40, 2)`, 54px dayanağı yok). Başlık/UI davranış kodu değişmedi.
-- Filtre/rapor ve yardımcı tipleri Application'a, AppStoragePaths Infrastructure.Persistence'e namespace/import dışında aynı gövdelerle taşındı; saf mantığın testleri Mac'te çalışıyor. MainForm yalnız import değişti, AppShellLayoutProfile aynı. Sınırlar ADR-0012'de.
-- Sabit Task.Delay/Thread.Sleep veya senkron task bekleme testlerde yok. Pause/resume mevcut navigation sinyaliyle, uçuşta gecikme regresyonu timer kayıt sinyali + FakeTimeProvider.Advance ile ilerler. MacroPlaybackService isteğe bağlı TimeProvider alır, varsayılan System aynı davranışı korur. Test-only Microsoft.Extensions.TimeProvider.Testing 10.0.0 eklendi; üretim paketleri değişmedi.
-- Core projelerde Win32 grep hâlâ boş (exit 1); Core test projesi yalnız Domain/Application/Infrastructure referanslıyor. Eski Makredo.Tests/Makredo.Migration.Tests projeleri çözümden kaldırıldı; friend assembly adları yenilendi.
-- Windows testleri, uygulama veya gerçek girdi çalıştırılmadı. CI T0.7'de kurulacak; derleme Windows runtime başarısı değildir. `gh pr checks 5`: `no checks reported`; PR açık ve `MERGEABLE` / `CLEAN`.
+## Son doğrulama — T0.7
+- [PR #6](https://github.com/EnesGoker/Makredo/pull/6), doğrulanan kod SHA `9f503c1`; [CI 42128747961](https://github.com/EnesGoker/Makredo/actions/runs/42128747961): **Ubuntu / Core, Windows / x64, Windows / ARM64 yeşil** (`gh pr checks 6` exit 0). Devir commit'i yalnız bu dokümanı günceller; PR'ın son SHA kontrolü PR açıklamasında.
+- Ubuntu: **120 Core geçti, 0 atlanan**. Windows x64 ve native ARM64: **107 Core geçti + önceden mevcut 5 UnixTheory skip**, **34 Windows geçti**; her makinede **146 TRX sonucu, 141 geçen, 5 mevcut skip, 0 başarısız**. 154 kaynak vakasının 13 Unix satırı Windows'ta 5 skip olarak keşfedilir; kaynak metotları/vaka sayıları ve TRX sonuçları birebir denetlenir. Yeni Skip/filtre/beklenti değişikliği yok.
+- İlk [CI 42128392866](https://github.com/EnesGoker/Makredo/actions/runs/42128392866) Windows x64/ARM64'te yalnız `ExistingDestinationStillAllowsCleanupWithoutChangingUserData` kırmızıydı: expected `macros/kept.json`, actual `macros\kept.json`. T0.3 fixture'ında birleşik slash dizgesi korunuyordu; `Path.Combine("macros", "kept.json")` ile dosya kurulum yolu düzeltildi (`0c713b3`), bütün assertion'lar aynı. Windows.Tests ilk koşuda da iki mimaride 34/34 geçti; masaüstü/hook gerekçesiyle hiçbir test atlanmadı.
+- Yeni TRX okuyucusunun ilk koşuda saptanan sayaç uyumu sorunu ayrı `9f503c1` commit'inde giderildi: VSTest, 5 NotExecuted sonucu için `notExecuted=0` yazabiliyor. Tekil outcome, total/executed/passed/failed zorunlu tutarlılığı korunur; skip sayacı yok/0 olabilir. Olumsuz fixture'lar eksik/sıfır/tekrarlı/başarısız/beklenmeyen skip ve çelişkili sayaçları reddeder.
+- Yerel Mac: `dotnet build -c Release` **0 uyarı, 0 hata**; Core **120/120**, `dotnet format --verify-no-changes` geçti. İki PowerShell scriptinin self-testleri ve gerçek Mac/CI TRX kayıtlarına karşı doğrulama geçti.
+- Windows x64 CI: format geçti; doğrudan+transitif NuGet audit JSON'u **7 proje, açık yok**. JSON kapısı tarama hatası/bozuk rapor/açık bulgusunu başarısız sayar; yalnız CLI exit koduna güvenmez. Yerel audit ve olumlu/olumsuz fixture'ları da geçti.
+- `contents: read`, PR concurrency iptali, persist-credentials kapalı checkout, yalnız SHA pinli actions/*, global.json SDK ve native mimari kontrolleri var. Her iş TRX artifact yükler; ARM testhost açıkça ARM64 hedeflenir. Dependabot (haftalık NuGet/Actions) ve AGENTS §4 başlıklı PR şablonu eklendi.
+- Geliştiricinin Mac'inde Windows testi/uygulama/gerçek girdi çalıştırılmadı. CI'da da bu görev yeni hook/SendInput senaryosu eklemedi; mevcut Windows testleri callback/yerleşim/adapter kapsamıdır. Ekran görüntüsü ve gerçek hook+SendInput fizibilitesi T0.8'e kaldı.
 
 ## Öğrenilenler ve tuzaklar
-- Mac'te `net10.0-windows` testleri **çalışmaz**. Derlenir ama koşmaz. Windows testlerinin sonucu CI'dan alınır.
+- Mac'te `net10.0-windows` testleri **çalışmaz**. T0.7 ile Windows x64 ve ARM64 sonuçları CI'dan alınır; TRX artifact'ları her işte saklanır. `scripts/verify-ci-tests.ps1` kaynak ve TRX kapsamını kontrol eder.
 - Simülasyon modu açıkken oynatma hiçbir girdi göndermez. "Oynatma çalışmıyor" gibi görünen sonuçlarda önce bu ayara bak.
 - F12, Windows'ta global kısayol olarak kaydedilemez (Win32 hata 1409, hata ayıklayıcıya ayrılmış).
 - Windows'un varsayılan zamanlayıcı çözünürlüğü yaklaşık 15,6 ms. `Task.Delay(1)` yaklaşık 15,6 ms bekler (F-004).
@@ -65,6 +64,7 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - Kütüphane durumu mutlak dosya yolları tutar; sadece byte kopyalama favori/son kullanım kayıtlarının UI tarafından budanmasına yol açar. Bu yüzden yalnız kopyadaki iç makro referansları yeniden köklendirilir; kaynak JSON değişmez.
 - T0.6: göç testleri ve UnixTheory artık `tests/Makredo.Core.Tests/Migration` altında, Infrastructure test seam'i Core.Tests'e açık. WinForms proje adı `Makredo.WinForms` olsa da gerçek AssemblyName `Makredo`; taşınan internal saf sınıfların UI friend adı bu olmalı. Kaynak kopyası linklemek yerine gerçek taşınabilir assembly test edilir.
 - T0.6 sayım scripti baseline `001acea` kaynaklarını `git show` ile okur; CI'da çalıştırılacaksa bu commit'i içeren history fetch edilmelidir. Kaynak sayımı Windows testlerini çalıştırmaz; Mac Core sonucu ayrıca raporlanır.
+- T0.7: Test fixture'larında `macros/file.json` gibi birleşik yol metinlerini dönen dosya listeleriyle dizge olarak kıyaslama; Path.Combine ile bileşenleri ayrı kur. Mevcut UnixTheory'ler Windows'ta 13 satırdan 5 skip sonucu üretir; VSTest'in notExecuted sayacı 0 kalabilir, tekil outcome ve total−executed kanıtına bak.
 - `.gitattributes` ve renormalizasyon T0.2'de tamamlandı; T0.7'nin işi değil. Index LF saklar, kapsanan çalışma dosyaları CRLF ve ikon/PNG binary kalır. ADR-0003–0010 yol haritasına ayrılmıştır; göç kararı ADR-0011'dir.
 
 ## Tamamlananlar
