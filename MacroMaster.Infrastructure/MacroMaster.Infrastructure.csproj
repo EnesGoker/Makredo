@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MacroMaster.Application\MacroMaster.Application.csproj" />
+    <ProjectReference Include="..\MacroMaster.Domain\MacroMaster.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Hooks\" />
+    <Folder Include="Interop\" />
+    <Folder Include="Persistence\" />
+  </ItemGroup>
+
+</Project>

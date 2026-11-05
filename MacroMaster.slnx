@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="MacroMaster.Application/MacroMaster.Application.csproj" Id="2a968fe7-e925-46a1-b74a-b425c5577444" />
+  <Project Path="MacroMaster.Domain/MacroMaster.Domain.csproj" Id="e8b0f439-4cef-489c-b547-1caa54f64bdd" />
+  <Project Path="MacroMaster.Infrastructure/MacroMaster.Infrastructure.csproj" Id="22eadc99-8e3b-4a6a-b3f3-7e5a07dcfc54" />
+  <Project Path="MacroMaster.Tests/MacroMaster.Tests.csproj" Id="58b5370a-31d4-466c-a9e7-d617404bd321" />
+  <Project Path="MacroMaster.WinForms/MacroMaster.WinForms.csproj" Id="167e2266-cd54-4324-9620-04e282d81884" />
+</Solution>

@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+	<AssemblyName>Polly</AssemblyName>
+	<Product>Polly</Product>
+	<Title>Polly</Title>
+	<Company>Enes Göker</Company>
+	<Authors>Enes Göker</Authors>
+	<ApplicationIcon>Resources\Polly.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MacroMaster.Application\MacroMaster.Application.csproj" />
+    <ProjectReference Include="..\MacroMaster.Domain\MacroMaster.Domain.csproj" />
+    <ProjectReference Include="..\MacroMaster.Infrastructure\MacroMaster.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Forms\" />
+    <Folder Include="Resources\" />
+  </ItemGroup>
+
+</Project>

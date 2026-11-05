@@ -1,0 +1,27 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+
+# Visual Studio / VS Code user-specific
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Rider / JetBrains
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+*.sln.docstates
+*.slnx.docstates
+*.log
+TestResults/
+artifacts-temp/
+
+publish/
+installer/output/
+*.aip
