@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Makredo.Infrastructure\Makredo.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Makredo.Platform.Windows\Makredo.Platform.Windows.csproj" />
     <ProjectReference Include="..\..\src\Makredo.WinForms\Makredo.WinForms.csproj" />
   </ItemGroup>
 

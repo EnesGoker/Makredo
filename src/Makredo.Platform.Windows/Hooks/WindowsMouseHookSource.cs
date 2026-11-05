@@ -4,9 +4,9 @@ using System.Runtime.InteropServices;
 using Makredo.Application.Abstractions;
 using Makredo.Application.Services;
 using Makredo.Domain.Enums;
-using Makredo.Infrastructure.Interop;
+using Makredo.Platform.Windows.Interop;
 
-namespace Makredo.Infrastructure.Hooks;
+namespace Makredo.Platform.Windows.Hooks;
 
 public sealed class WindowsMouseHookSource : IMouseHookSource, IDisposable
 {

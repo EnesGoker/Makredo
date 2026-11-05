@@ -3,9 +3,9 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Makredo.Application.Abstractions;
 using Makredo.Application.Services;
-using Makredo.Infrastructure.Interop;
+using Makredo.Platform.Windows.Interop;
 
-namespace Makredo.Infrastructure.Hooks;
+namespace Makredo.Platform.Windows.Hooks;
 
 public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable
 {

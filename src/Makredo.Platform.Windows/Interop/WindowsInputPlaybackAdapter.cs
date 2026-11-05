@@ -4,7 +4,7 @@ using Makredo.Application.Services;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
 
-namespace Makredo.Infrastructure.Interop;
+namespace Makredo.Platform.Windows.Interop;
 
 public sealed class WindowsInputPlaybackAdapter : IInputPlaybackAdapter, ICursorPositionProvider
 {

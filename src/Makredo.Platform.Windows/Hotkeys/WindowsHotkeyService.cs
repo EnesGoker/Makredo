@@ -3,7 +3,7 @@ using Makredo.Application.Abstractions;
 using Makredo.Application.Services;
 using Makredo.Domain;
 
-namespace Makredo.WinForms.Platform;
+namespace Makredo.Platform.Windows.Hotkeys;
 
 public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
 {

@@ -21,6 +21,7 @@
     <ProjectReference Include="..\Makredo.Application\Makredo.Application.csproj" />
     <ProjectReference Include="..\Makredo.Domain\Makredo.Domain.csproj" />
     <ProjectReference Include="..\Makredo.Infrastructure\Makredo.Infrastructure.csproj" />
+    <ProjectReference Include="..\Makredo.Platform.Windows\Makredo.Platform.Windows.csproj" />
   </ItemGroup>
 
 </Project>
