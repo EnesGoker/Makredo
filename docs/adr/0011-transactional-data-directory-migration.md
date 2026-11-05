@@ -1,4 +1,4 @@
-# ADR 0004: Publish migrated data only after a complete copy
+# ADR 0011: Publish migrated data only after a complete copy
 
 - Status: Accepted
 - Date: 2026-11-06
@@ -29,6 +29,13 @@ files have been copied, write `.legacy-data-migration.json` with schema version
 `1` and `hotkeyMigrationPending: true`. Publish the staged directory with
 `Directory.Move`; never merge into or overwrite an existing destination. Shortcut
 settings remain byte-for-byte unchanged until T1.5.
+
+The staged library-state file rebases favorite and last-used paths that point
+inside the old `macros/` tree to the final `macros/` tree. Otherwise the existing
+UI's pruning step would discard those records after the directory change. Keep
+external paths and unknown metadata intact; preserve the latest valid timestamp
+when recent-file keys collide. Leave unsupported or malformed JSON unchanged for
+the existing reader to handle. File I/O failures still abort publication.
 
 On failure or cancellation, clean up only this attempt's staging directory on a
 best-effort basis and propagate the failure. Startup must not continue with an

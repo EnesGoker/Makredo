@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
+using Makredo.Application.Abstractions;
 using Makredo.Infrastructure.Migration;
+using Makredo.Infrastructure.Persistence;
 using Xunit;
 
 namespace Makredo.Migration.Tests;
@@ -432,6 +434,221 @@ public sealed class DataDirectoryMigratorTests
         Assert.Equal(DataDirectoryMigrationResult.Migrated, result);
         Assert.Equal(DataDirectoryMigrator.CompletionMarkerFileName, Assert.Single(RelativeFiles(sandbox.DestinationPath)));
         Assert.False(Directory.Exists(Path.Combine(sandbox.DestinationPath, "logs")));
+        AssertFilesUnchanged(sandbox.SourcePath, sourceSnapshot);
+    }
+
+    [Fact]
+    public async Task LibraryStateReferencesFollowCopiedMacrosAndKeepLastUsedTime()
+    {
+        using var sandbox = new MigrationSandbox();
+        sandbox.WriteSourceText("macros/nested/favorite.json", "synthetic macro bytes");
+        string legacyMacroPath = Path.Combine(sandbox.SourcePath, "macros", "nested", "favorite.json");
+        string migratedMacroPath = Path.Combine(sandbox.DestinationPath, "macros", "nested", "favorite.json");
+        DateTime lastUsedUtc = new(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var sourceState = new MacroLibraryUserState
+        {
+            FavoriteFilePaths = [legacyMacroPath],
+            LastUsedUtcByFilePath = new(StringComparer.OrdinalIgnoreCase)
+            {
+                [legacyMacroPath] = lastUsedUtc
+            }
+        };
+        sandbox.WriteSourceText("library-state.json", JsonSerializer.Serialize(sourceState));
+        Dictionary<string, FileSnapshot> sourceSnapshot = CaptureFiles(sandbox.SourcePath);
+
+        DataDirectoryMigrationResult result = new DataDirectoryMigrator().Migrate(sandbox.SourcePath, sandbox.DestinationPath);
+
+        Assert.Equal(DataDirectoryMigrationResult.Migrated, result);
+        string migratedStatePath = Path.Combine(sandbox.DestinationPath, "library-state.json");
+        MacroLibraryUserState migratedState = await new JsonMacroLibraryUserStateStore(migratedStatePath).LoadAsync();
+        Assert.Equal(migratedMacroPath, Assert.Single(migratedState.FavoriteFilePaths));
+        KeyValuePair<string, DateTime> recentEntry = Assert.Single(migratedState.LastUsedUtcByFilePath);
+        Assert.Equal(migratedMacroPath, recentEntry.Key);
+        Assert.Equal(lastUsedUtc, recentEntry.Value);
+        Assert.True(File.Exists(migratedMacroPath));
+        Assert.Equal(sourceSnapshot["library-state.json"].LastWriteTimeUtc, File.GetLastWriteTimeUtc(migratedStatePath));
+        Assert.True(File.Exists(sandbox.CompletionMarkerPath));
+        AssertFilesUnchanged(sandbox.SourcePath, sourceSnapshot);
+    }
+
+    [Fact]
+    public void LibraryStateRebasingPreservesFieldCasingUnknownValuesAndUnrecognizedArrayItems()
+    {
+        using var sandbox = new MigrationSandbox();
+        sandbox.WriteSourceText("macros/sample.json", "synthetic macro bytes");
+        string legacyMacroPath = Path.Combine(sandbox.SourcePath, "macros", "sample.json");
+        string migratedMacroPath = Path.Combine(sandbox.DestinationPath, "macros", "sample.json");
+        const string recentTime = "2026-01-02T03:04:05Z";
+        var state = new Dictionary<string, object?>
+        {
+            ["fAvOrItEfIlEpAtHs"] = new object?[] { legacyMacroPath, 7, null },
+            ["lAsTuSeDuTcByFiLePaTh"] = new Dictionary<string, string> { [legacyMacroPath] = recentTime },
+            ["FutureCount"] = 17,
+            ["FutureFlag"] = false,
+            ["FuturePayload"] = new Dictionary<string, object?>
+            {
+                ["rawPath"] = legacyMacroPath,
+                ["sequence"] = new object?[] { null, 3, "keep" }
+            }
+        };
+        sandbox.WriteSourceText("library-state.json", JsonSerializer.Serialize(state));
+        Dictionary<string, FileSnapshot> sourceSnapshot = CaptureFiles(sandbox.SourcePath);
+
+        Assert.Equal(
+            DataDirectoryMigrationResult.Migrated,
+            new DataDirectoryMigrator().Migrate(sandbox.SourcePath, sandbox.DestinationPath));
+
+        using JsonDocument migrated = JsonDocument.Parse(File.ReadAllText(Path.Combine(sandbox.DestinationPath, "library-state.json")));
+        JsonElement root = migrated.RootElement;
+        JsonElement favorites = root.GetProperty("fAvOrItEfIlEpAtHs");
+        Assert.Equal(migratedMacroPath, favorites[0].GetString());
+        Assert.Equal(JsonValueKind.Number, favorites[1].ValueKind);
+        Assert.Equal(7, favorites[1].GetInt32());
+        Assert.Equal(JsonValueKind.Null, favorites[2].ValueKind);
+        Assert.Equal(recentTime, root.GetProperty("lAsTuSeDuTcByFiLePaTh").GetProperty(migratedMacroPath).GetString());
+        Assert.False(root.TryGetProperty("FavoriteFilePaths", out _));
+        Assert.False(root.TryGetProperty("LastUsedUtcByFilePath", out _));
+        Assert.Equal(JsonValueKind.Number, root.GetProperty("FutureCount").ValueKind);
+        Assert.Equal(17, root.GetProperty("FutureCount").GetInt32());
+        Assert.Equal(JsonValueKind.False, root.GetProperty("FutureFlag").ValueKind);
+        JsonElement payload = root.GetProperty("FuturePayload");
+        Assert.Equal(legacyMacroPath, payload.GetProperty("rawPath").GetString());
+        Assert.Equal(JsonValueKind.Null, payload.GetProperty("sequence")[0].ValueKind);
+        Assert.Equal(3, payload.GetProperty("sequence")[1].GetInt32());
+        Assert.Equal("keep", payload.GetProperty("sequence")[2].GetString());
+        AssertFilesUnchanged(sandbox.SourcePath, sourceSnapshot);
+    }
+
+    [Fact]
+    public void LibraryStateRebasesOnlyAbsoluteReferencesInsideTheSourceMacroDirectory()
+    {
+        using var sandbox = new MigrationSandbox();
+        sandbox.WriteSourceText("macros/sample.json", "synthetic macro bytes");
+        string legacyMacroPath = Path.Combine(sandbox.SourcePath, "macros", "sample.json");
+        string migratedMacroPath = Path.Combine(sandbox.DestinationPath, "macros", "sample.json");
+        string externalPath = Path.Combine(sandbox.RootPath, "external", "sample.json");
+        string siblingPrefixPath = Path.Combine(sandbox.SourcePath, "macros-other", "sample.json");
+        string relativePath = Path.Combine("macros", "relative.json");
+        const string recentTime = "2026-01-02T03:04:05Z";
+        var state = new
+        {
+            FavoriteFilePaths = new[] { legacyMacroPath, externalPath, siblingPrefixPath, relativePath },
+            LastUsedUtcByFilePath = new Dictionary<string, string>
+            {
+                [legacyMacroPath] = recentTime,
+                [externalPath] = recentTime,
+                [siblingPrefixPath] = recentTime,
+                [relativePath] = recentTime
+            }
+        };
+        sandbox.WriteSourceText("library-state.json", JsonSerializer.Serialize(state));
+        Dictionary<string, FileSnapshot> sourceSnapshot = CaptureFiles(sandbox.SourcePath);
+
+        Assert.Equal(
+            DataDirectoryMigrationResult.Migrated,
+            new DataDirectoryMigrator().Migrate(sandbox.SourcePath, sandbox.DestinationPath));
+
+        using JsonDocument migrated = JsonDocument.Parse(File.ReadAllText(Path.Combine(sandbox.DestinationPath, "library-state.json")));
+        Assert.Equal(
+            new[] { migratedMacroPath, externalPath, siblingPrefixPath, relativePath },
+            migrated.RootElement.GetProperty("FavoriteFilePaths").EnumerateArray().Select(value => value.GetString()!).ToArray());
+        JsonElement recentEntries = migrated.RootElement.GetProperty("LastUsedUtcByFilePath");
+        Assert.Equal(recentTime, recentEntries.GetProperty(migratedMacroPath).GetString());
+        Assert.Equal(recentTime, recentEntries.GetProperty(externalPath).GetString());
+        Assert.Equal(recentTime, recentEntries.GetProperty(siblingPrefixPath).GetString());
+        Assert.Equal(recentTime, recentEntries.GetProperty(relativePath).GetString());
+        Assert.False(recentEntries.TryGetProperty(legacyMacroPath, out _));
+        AssertFilesUnchanged(sandbox.SourcePath, sourceSnapshot);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConflictingRecentReferencesKeepTheMostRecentValidTimestamp(bool legacyTimestampIsNewer)
+    {
+        using var sandbox = new MigrationSandbox();
+        sandbox.WriteSourceText("macros/sample.json", "synthetic macro bytes");
+        string legacyMacroPath = Path.Combine(sandbox.SourcePath, "macros", "sample.json");
+        string migratedMacroPath = Path.Combine(sandbox.DestinationPath, "macros", "sample.json");
+        const string olderTime = "2026-01-01T12:00:00Z";
+        const string newerTime = "2026-03-01T12:00:00Z";
+        var state = new
+        {
+            FavoriteFilePaths = new[] { legacyMacroPath },
+            LastUsedUtcByFilePath = new Dictionary<string, string>
+            {
+                [legacyMacroPath] = legacyTimestampIsNewer ? newerTime : olderTime,
+                [migratedMacroPath] = legacyTimestampIsNewer ? olderTime : newerTime
+            }
+        };
+        sandbox.WriteSourceText("library-state.json", JsonSerializer.Serialize(state));
+        Dictionary<string, FileSnapshot> sourceSnapshot = CaptureFiles(sandbox.SourcePath);
+
+        Assert.Equal(
+            DataDirectoryMigrationResult.Migrated,
+            new DataDirectoryMigrator().Migrate(sandbox.SourcePath, sandbox.DestinationPath));
+
+        string migratedStatePath = Path.Combine(sandbox.DestinationPath, "library-state.json");
+        MacroLibraryUserState migratedState = await new JsonMacroLibraryUserStateStore(migratedStatePath).LoadAsync();
+        KeyValuePair<string, DateTime> recentEntry = Assert.Single(migratedState.LastUsedUtcByFilePath);
+        Assert.Equal(migratedMacroPath, recentEntry.Key);
+        Assert.Equal(new DateTime(2026, 3, 1, 12, 0, 0, DateTimeKind.Utc), recentEntry.Value);
+        AssertFilesUnchanged(sandbox.SourcePath, sourceSnapshot);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ConflictingRecentReferencesWithInvalidTimestampsKeepBothRawEntries(bool legacyTimestampIsInvalid)
+    {
+        using var sandbox = new MigrationSandbox();
+        sandbox.WriteSourceText("macros/sample.json", "synthetic macro bytes");
+        string legacyMacroPath = Path.Combine(sandbox.SourcePath, "macros", "sample.json");
+        string migratedMacroPath = Path.Combine(sandbox.DestinationPath, "macros", "sample.json");
+        string legacyTime = legacyTimestampIsInvalid ? "legacy-raw-invalid" : "2026-01-01T12:00:00Z";
+        string destinationTime = legacyTimestampIsInvalid ? "2026-03-01T12:00:00Z" : "destination-raw-invalid";
+        var state = new
+        {
+            LastUsedUtcByFilePath = new Dictionary<string, string>
+            {
+                [legacyMacroPath] = legacyTime,
+                [migratedMacroPath] = destinationTime
+            }
+        };
+        sandbox.WriteSourceText("library-state.json", JsonSerializer.Serialize(state));
+        Dictionary<string, FileSnapshot> sourceSnapshot = CaptureFiles(sandbox.SourcePath);
+
+        Assert.Equal(
+            DataDirectoryMigrationResult.Migrated,
+            new DataDirectoryMigrator().Migrate(sandbox.SourcePath, sandbox.DestinationPath));
+
+        using JsonDocument migrated = JsonDocument.Parse(File.ReadAllText(Path.Combine(sandbox.DestinationPath, "library-state.json")));
+        JsonElement recentEntries = migrated.RootElement.GetProperty("LastUsedUtcByFilePath");
+        Assert.Equal(legacyTime, recentEntries.GetProperty(legacyMacroPath).GetString());
+        Assert.Equal(destinationTime, recentEntries.GetProperty(migratedMacroPath).GetString());
+        AssertFilesUnchanged(sandbox.SourcePath, sourceSnapshot);
+    }
+
+    [Theory]
+    [InlineData(" { \"FavoriteFilePaths\" : [")]
+    [InlineData(" [true, {\"future\":\"value\"}] \r\n")]
+    [InlineData(" null \r\n")]
+    [InlineData(" 42 \r\n")]
+    [InlineData(" { \"FavoriteFilePaths\" : [\"macros/relative.json\"], \"LastUsedUtcByFilePath\" : {\"macros/relative.json\":\"2026-01-01T12:00:00Z\"}, \"unknown\" : 19 }\r\n")]
+    public void LibraryStateWithoutApplicableReferencesKeepsExactBytesAndTimestamp(string contents)
+    {
+        using var sandbox = new MigrationSandbox();
+        byte[] originalContents = Encoding.UTF8.GetBytes(contents);
+        sandbox.WriteSourceFile("library-state.json", originalContents);
+        Dictionary<string, FileSnapshot> sourceSnapshot = CaptureFiles(sandbox.SourcePath);
+
+        Assert.Equal(
+            DataDirectoryMigrationResult.Migrated,
+            new DataDirectoryMigrator().Migrate(sandbox.SourcePath, sandbox.DestinationPath));
+
+        string migratedStatePath = Path.Combine(sandbox.DestinationPath, "library-state.json");
+        Assert.Equal(originalContents, File.ReadAllBytes(migratedStatePath));
+        Assert.Equal(sourceSnapshot["library-state.json"].LastWriteTimeUtc, File.GetLastWriteTimeUtc(migratedStatePath));
         AssertFilesUnchanged(sandbox.SourcePath, sourceSnapshot);
     }
 

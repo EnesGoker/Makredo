@@ -85,6 +85,12 @@ public sealed class DataDirectoryMigrator
                     cancellationToken);
             }
 
+            LibraryStatePathMigration.Rebase(
+                Path.Combine(stagingPath, "library-state.json"),
+                sourceMacrosPath,
+                Path.Combine(destinationPath, "macros"),
+                cancellationToken);
+
             cancellationToken.ThrowIfCancellationRequested();
             WriteCompletionMarker(stagingPath);
             cancellationToken.ThrowIfCancellationRequested();

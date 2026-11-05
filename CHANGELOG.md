@@ -11,7 +11,8 @@
 - Uygulama ve test projeleri .NET 10'a taşındı; test paketleri güncellendi.
 - İlk açılışta eski Polly klasöründeki ayarlar ve makrolar Makredo klasörüne
   bir kez kopyalanır. Kaynak veriler korunur, günlükler taşınmaz ve mevcut
-  Makredo verilerinin üzerine yazılmaz. Yarım kalan kopyalar yeniden denenir.
+  Makredo verilerinin üzerine yazılmaz. Yarım kalan kopyalar yeniden denenir;
+  favori ve son kullanım kayıtları yeni makro konumuna uyarlanır.
 
 ### Changed
 
@@ -22,4 +23,5 @@
 - Migrated application and test projects to .NET 10 and updated test packages.
 - On first launch, legacy Polly settings and macros are copied once into the
   Makredo directory. Source data is preserved, logs are excluded, and existing
-  Makredo data is never overwritten. Interrupted copies are retried.
+  Makredo data is never overwritten. Interrupted copies are retried; favorites
+  and recently used records are updated to the new macro location.
