@@ -70,6 +70,19 @@ function Get-TestInventory {
     return $tests
 }
 
+function Assert-TrxCounters {
+    param([System.Xml.XmlElement] $Counters, [int] $Total, [int] $Passed, [int] $Skipped, [int] $Failed, [string] $FileName)
+
+    # VSTest leaves notExecuted at zero (or omits it) for xUnit skips. Individual
+    # NotExecuted results and total - executed are authoritative for those skips.
+    $reportedSkipped = [int]$Counters.GetAttribute('notExecuted')
+    if ([int]$Counters.total -ne $Total -or [int]$Counters.passed -ne $Passed -or
+        [int]$Counters.failed -ne $Failed -or [int]$Counters.executed -ne ($Total - $Skipped) -or
+        ($reportedSkipped -ne 0 -and $reportedSkipped -ne $Skipped)) {
+        throw "TRX counters disagree with individual results: $FileName"
+    }
+}
+
 function Read-TestResults {
     param([string] $Directory)
 
@@ -95,11 +108,7 @@ function Read-TestResults {
         $passed = @($nodes | Where-Object { $_.outcome -eq 'Passed' }).Count
         $skipped = @($nodes | Where-Object { $_.outcome -eq 'NotExecuted' }).Count
         $failed = @($nodes | Where-Object { $_.outcome -eq 'Failed' }).Count
-        if ([int]$counters.total -ne $nodes.Count -or [int]$counters.passed -ne $passed -or
-            [int]$counters.failed -ne $failed -or [int]$counters.notExecuted -ne $skipped -or
-            [int]$counters.executed -ne ($nodes.Count - $skipped)) {
-            throw "TRX counters disagree with individual results: $($file.Name)"
-        }
+        Assert-TrxCounters $counters $nodes.Count $passed $skipped $failed $file.Name
         foreach ($node in $nodes) {
             if (-not $definitions.ContainsKey($node.testId)) { throw "TRX result without definition: $($node.testId)" }
             $message = $node.SelectSingleNode('t:Output/t:ErrorInfo/t:Message', $manager)
@@ -166,7 +175,23 @@ function Invoke-SelfTest {
         try { Test-Coverage $expected $fixture.Values } catch { $rejected = $true }
         if (-not $rejected) { throw "Self-test accepted $($fixture.Label)" }
     }
-    Write-Output 'PASS: coverage guard rejects zero/missing/duplicate/unexpected/failed/skipped results.'
+    foreach ($optionalSkipCounter in @('', ' notExecuted="0"', ' notExecuted="5"')) {
+        [xml]$counterFixture = '<Counters total="112" executed="107" passed="106" failed="1"' + $optionalSkipCounter + ' />'
+        Assert-TrxCounters $counterFixture.DocumentElement 112 106 5 1 'counter fixture'
+    }
+    foreach ($invalidCounter in @(
+        '<Counters total="111" executed="107" passed="106" failed="1" />',
+        '<Counters total="112" executed="112" passed="106" failed="1" />',
+        '<Counters total="112" executed="107" passed="105" failed="1" />',
+        '<Counters total="112" executed="107" passed="106" failed="0" />',
+        '<Counters total="112" executed="107" passed="106" failed="1" notExecuted="4" />'
+    )) {
+        [xml]$counterFixture = $invalidCounter
+        $rejected = $false
+        try { Assert-TrxCounters $counterFixture.DocumentElement 112 106 5 1 'invalid counter fixture' } catch { $rejected = $true }
+        if (-not $rejected) { throw 'Self-test accepted inconsistent TRX counters.' }
+    }
+    Write-Output 'PASS: coverage guard rejects zero/missing/duplicate/unexpected/failed/skipped results and inconsistent TRX counters.'
 }
 
 if ($SelfTest) {
