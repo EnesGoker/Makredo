@@ -2,10 +2,12 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Controls are composed in code. Preserve existing designer behavior during retargeting; review serialization metadata in phase 4. -->
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
     <AssemblyName>Makredo</AssemblyName>
     <Product>Makredo</Product>

@@ -2,26 +2,26 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.2 incelemede ([PR #1](https://github.com/EnesGoker/Makredo/pull/1))
+**Son güncelleme:** 2026-11-06 · codex · T0.4 incelemede ([PR #2](https://github.com/EnesGoker/Makredo/pull/2))
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1 tamamlandı, T0.2 incelemede)
+- **Faz:** 0 — Kuruluş (T0.1/T0.2 tamamlandı, T0.4 incelemede)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** T0.3/T0.4 için T0.2 PR'ının birleşmesi bekleniyor.
+- **Engel:** T0.5 için T0.4 PR'ının birleşmesi bekleniyor; T0.3 paralel yürüyebilir.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.2 — Ad dönüşümü ve yapı 🔒 | codex | `codex/T0.2-rename-and-layout` | İncelemede | [PR #1](https://github.com/EnesGoker/Makredo/pull/1). Yapı, merkezi ürün adı ve `.gitattributes`/renormalizasyon tamam; son format/Release build geçti. 67 test derlendi, taşınabilir regresyon 1/1 geçti, `Makredo.exe` doğrulandı. Windows suite/manuel arayüz doğrulanmadı; CI henüz yok. Enes squash merge yapacak. `MainForm`/`AppShellLayoutProfile` kilidi PR birleşene kadar sürer. |
+| T0.4 — .NET 10 | codex | `codex/T0.4-dotnet-10` | İncelemede | [PR #2](https://github.com/EnesGoker/Makredo/pull/2). Release build 0 uyarı/hata; format ve transitif güvenlik taraması geçti. Taşınabilir regresyon net10.0'da 1/1 geçti; 67 test derlendi. PR'da DPI/PInvoke/nullable/WFO1000/test adapter Windows izleme listesi var. SDK/hedefleme/ortak props ve depolama/göç kodu değişmedi. Windows testleri T0.7'ye bırakıldı. Enes squash merge yapacak. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.3** Veri klasörü göçü (T0.2 PR'ı birleştikten sonra)
-2. **T0.4** .NET 10 (T0.2 PR'ı birleştikten sonra; SDK pini ve Mac hedefleme ayarı zaten yapıldı, framework/paket dönüşümü kaldı)
-3. **T0.5** Platform katmanını ayır
-4. **T0.6** Test yapısı
+1. **T0.3** Veri klasörü göçü (T0.4 ile paralel yürüyebilir)
+2. **T0.5** Platform katmanını ayır (T0.4 PR'ı birleştikten sonra)
+3. **T0.6** Test yapısı
+4. **T0.7** CI
 
 Faz 0 içinde T0.3 ile T0.4, T0.2 bittikten sonra paralel yürüyebilir. Sıra ve bağımlılıklar `docs/ROADMAP.md`'de.
 
@@ -41,16 +41,15 @@ Her soru için bir varsayılan var. Ajanlar cevap gelene kadar varsayılanla dev
 
 ## Sonraya (kapsam dışı görülenler)
 Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazılır: kısa açıklama, nerede görüldüğü, hangi görevde fark edildiği.
-- Yeni kapsam dışı bulgu yok. T0.1'deki Mac build/format engelleri T0.2'de giderildi.
+- T0.4: .NET 10'a geçince 17 WinForms dosyasında 45 WFO1000 tasarım zamanı serialization tanısı oluştu. Kodla oluşturulan mevcut kontrollerin serialization davranışını korumak için yalnız `Makredo.WinForms.csproj` içinde WFO1000 bastırıldı. Bu proje kapsamı gelecekteki metadata eksiklerini de gizleyebilir; Faz 4 arayüz refaktöründe özelliklerin `DefaultValue`/`DesignerSerializationVisibility`/`ShouldSerialize` niyetleri belirlenip suppression kaldırılmalı.
 
-## Son doğrulama — T0.2
-- `dotnet build -c Release`: **0 uyarı, 0 hata**; mevcut 62 test ve 5 yeni regresyon derlendi. `dotnet format --verify-no-changes`: geçti. 124 C# dosyasında CRLF/boşluk düzeni ayrı commit'te normalleştirildi.
-- `.gitattributes` eklendi ve `git add --renormalize .` çalıştırıldı; format kontrolü ve Release build yeniden geçti (**0 uyarı, 0 hata**). Index LF/çalışma ağacı CRLF kuralları doğrulandı; kaynak içerikleri satır sonları dışında aynı, ikon byte olarak aynı kaldı.
-- `tests/Makredo.Tests/ProductIdentityTests.cs`, geçici dış `net8.0` xUnit harness'ında derlenmiş Release Domain/Application/Infrastructure assembly'leriyle Mac'te **1/1 geçti**. Dört yeni Windows regresyonu ve mevcut Windows suite çalıştırılmadı; Core projesi T0.6'da ayrılacak. Denetimdeki iki eski kırmızı test T0.6'ya bırakıldı.
-- `dotnet publish src/Makredo.WinForms/Makredo.WinForms.csproj -c Release -r win-x64 --self-contained false -o <geçici-çıktı>`: geçti; `Makredo.exe` ve Windows PE/x64 başlığı doğrulandı. Exe/uygulama veya gerçek girdi gönderen test çalıştırılmadı.
-- `git grep -in "macromaster\|polly" -- src tests installer`: yalnız `Composition/Migration/LegacyStoragePaths.cs` ve `tests/Makredo.Tests/Migration/AppStoragePathsTests.cs` eski veri klasörü için eşleşiyor. Mevcut veri yolu T0.3'e kadar korunuyor; gerçek kullanıcı verisine dokunulmadı.
-- Tek `Makredo.slnx`, beş geçerli proje/referans, `Makredo.*` assembly adları, değişmeyen ikon içeriği ve installer yolları doğrulandı. `AGENTS.md`/`CLAUDE.md` değişmedi. Bağımsız incelemede marka/yapı dışında davranış değişikliği bulunmadı.
-- `gh pr checks 1`: **no checks reported**; CI T0.7'de kurulacak. Windows çalışma zamanı, manuel arayüz ve ekran görüntüsü doğrulanmadı (ekran görüntüsü altyapısı T0.8).
+## Son doğrulama — T0.4
+- `dotnet build -c Release`: **0 uyarı, 0 hata**, 67 test net10.0-windows için derlendi. `dotnet format --verify-no-changes`: geçti.
+- `dotnet list package --vulnerable --include-transitive`: NuGet kaynağında beş projenin hiçbirinde bilinen açık bulunmadı. Newtonsoft.Json doğrudan referansı ve restore edilmiş test grafiğinden kalktı. Test SDK **18.11.0**, xUnit **2.9.3**, VSTest adapter **4.0.1**.
+- Mevcut `ProductIdentityTests.cs`, geçici dış `net10.0` xUnit harness'ında derlenmiş .NET 10 Domain/Application/Infrastructure assembly'leri ve yeni paketlerle Mac'te **1/1 geçti**. Windows suite çalıştırılmadı (T0.7); Core projesi henüz yok (T0.6). Denetimdeki iki eski kırmızı test değiştirilmedi.
+- Yeni analyzer suppression yalnız `src/Makredo.WinForms/Makredo.WinForms.csproj` içindeki **WFO1000**. `EventListControl` painting metodunda iki CS8602, `ConfigureGrid`'in oluşturduğu sabit `#`/`Type` kolonlarına `!` ile giderildi; yeni çalışma zamanı dalı yok. Önceki CA1859/CA1707 ve `8.0-recommended` analyzer profili değişmedi.
+- `global.json`, `Directory.Build.props`, `AppStoragePaths`, `Migration/`, Persistence ve kurallar değişmedi; T0.3'e müdahale edilmedi. 67 test korundu. Uygulama, Windows testi veya gerçek girdi gönderen bir test çalıştırılmadı.
+- [PR #2](https://github.com/EnesGoker/Makredo/pull/2) içinde T0.7 için ayrı Windows izleme listesi var: SystemAware/manuel DPI ölçekleme, çizim/kolon varsayımları, x64/ARM64 P/Invoke/INPUT boyutları ve hook/hotkey yaşam döngüsü, analyzer suppression, güncel test adapter discovery/kapanışı. CI henüz yok (T0.7).
 
 ## Öğrenilenler ve tuzaklar
 - Mac'te `net10.0-windows` testleri **çalışmaz**. Derlenir ama koşmaz. Windows testlerinin sonucu CI'dan alınır.
@@ -58,10 +57,11 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - F12, Windows'ta global kısayol olarak kaydedilemez (Win32 hata 1409, hata ayıklayıcıya ayrılmış).
 - Windows'un varsayılan zamanlayıcı çözünürlüğü yaklaşık 15,6 ms. `Task.Delay(1)` yaklaşık 15,6 ms bekler (F-004).
 - Denetim raporundaki dosya yolları ve satır numaraları eski `MacroMaster@837fe75` koduna aittir. T0.2 ve T0.5'ten sonra yeni yollara bak.
-- `.slnx`, içe aktarılan .NET 8 SDK ile okunamıyor. Bu nedenle .NET 10 SDK pini (`latestFeature`) ve Mac Windows hedefleme ayarı T0.2'de öne alındı (ADR-0002); .NET 8 framework/paket dönüşümü hâlâ T0.4'te.
+- `.slnx` için .NET 10 SDK pini (`latestFeature`) ve Mac Windows hedefleme ayarı T0.2'de öne alındı (ADR-0002); framework ve test paketleri T0.4'te .NET 10'a taşındı. xUnit framework v2'de kalır; VSTest adapter major sürümünün framework major sürümüyle eşleşmesi gerekmez.
 - T0.3, `Composition/Migration/LegacyStoragePaths` sabitini göç kaynağı olarak kullanmalı; mevcut default veri yolu regresyonunu yeni kopyala/bir-kez davranışına göre güncellemeli. `.gitattributes` ve `git add --renormalize .` T0.2'de tamamlandı; T0.7'nin işi değil. Git index'i metinleri LF saklar; C#/proje/props/solution/resx/installer dosyaları çalışma ağacına CRLF ile çıkar, ikon/PNG binary kalır.
 
 ## Tamamlananlar
 | Görev | PR | Tarih | Ajan |
 |---|---|---|---|
 | T0.1 — İçe aktarma | PR yok (Enes onayı); [main'de import + kit](https://github.com/EnesGoker/Makredo/commits/main/) | 2026-11-05 | codex |
+| T0.2 — Ad dönüşümü ve yapı | [PR #1](https://github.com/EnesGoker/Makredo/pull/1), squash merge `73dd5c0` | 2026-11-06 | codex |
