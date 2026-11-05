@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.5 — Platform katmanı | codex | `codex/T0.5-platform-layer` | Devam ediyor | Görev sahiplenildi. Sıradaki: Null/Default kullanım kanıtı, hook/interop/hotkey taşıma ve proje referansları. Davranış değişmeyecek; MainForm/AppShellLayoutProfile yalnız using/namespace için değişebilir. Mac göç testleri ve build/format doğrulanacak. |
+| T0.5 — Platform katmanı | codex | `codex/T0.5-platform-layer` | Devam ediyor | Beş adapter yeni Windows projesine taşındı; dört kullanılmayan Null/Default silindi (grep kanıtı hazır), NullAppLogger korundu. Build 0 uyarı/hata, format ve Mac 65/65 geçti; Core Win32 grep boş. Beş dosyanın gövdeleri namespace/import dışı byte olarak aynı, MainForm/Profile değişmedi. Sıradaki: PR ve son HANDOFF. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
@@ -43,17 +43,16 @@ Her soru için bir varsayılan var. Ajanlar cevap gelene kadar varsayılanla dev
 Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazılır: kısa açıklama, nerede görüldüğü, hangi görevde fark edildiği.
 - T0.4: .NET 10'a geçince 17 WinForms dosyasında 45 WFO1000 tasarım zamanı serialization tanısı oluştu. Kodla oluşturulan mevcut kontrollerin serialization davranışını korumak için yalnız `Makredo.WinForms.csproj` içinde WFO1000 bastırıldı. Bu proje kapsamı gelecekteki metadata eksiklerini de gizleyebilir; Faz 4 arayüz refaktöründe özelliklerin `DefaultValue`/`DesignerSerializationVisibility`/`ShouldSerialize` niyetleri belirlenip suppression kaldırılmalı.
 - T0.3 düzeltmesi yalnız göç/hazırlık hatasını WinForms'ta yakalar; mesaj ve best-effort geçici tanı sonrası uygulama başlamaz. Diğer composition/logger kurulum hatalarının genel işlenmesi mevcut F-017/T2.4 kapsamındadır.
+- T0.5: Hook/SendInput davranışları taşınırken değiştirilmedi. Basılı girdilerin bırakılması F-001/T1.2, fiziksel acil durdurma F-002/T1.6 kapsamındadır; yeni yollar `src/Makredo.Platform.Windows/Hooks` ve `Interop` altındadır.
 
-## Son doğrulama — T0.3
-- `dotnet build -c Release`: **0 uyarı, 0 hata**. `dotnet format --verify-no-changes`: geçti. Mevcut 67 Windows testi ve 11 yeni startup regresyonu derlendi; Windows'ta çalıştırılmadı.
-- `dotnet test tests/Makredo.Migration.Tests -c Release --no-build`: Mac'te **65 geçti, 0 başarısız, 0 atlanan** (38 göç + 27 temizlik vakası). Proje `net10.0`; yalnız Infrastructure'a referans verir ve mevcut test paketlerini kullanır. T0.6'da Core'a taşınacak.
-- Geçici klasörlerde kopyalama, byte/LastWriteTime kaynak koruması, logs/ilgisiz dosya dışlama, ikinci açılış/mevcut hedef/yarış, gerçek yarım hedef dosyası ardından enjekte I/O hatası, erişim hatası, iptal ve güncel kaynaktan retry doğrulandı. Disk gerçekten doldurulmadı; işletim sistemi kilit davranışına bağımlı test kullanılmadı.
-- Favori/son kullanım yolları yalnız eski `macros/` içindeyse kopyadaki yeni köke uyarlandı; gerçek store ile favorite/tarih semantiği, dış yol sınırları, bilinmeyen alanlar, geçerli/geçersiz tarih çakışmaları ve bozuk/uygulanamaz JSON'da byte/mtime koruması test edildi.
-- Marker `.legacy-data-migration.json`, `version: 1` ve `hotkeyMigrationPending: true` içerir. Kısayol dosyası byte olarak aynı kalır; T1.5 gerçek varsayılan dönüşümünü yapacak. Tasarım [ADR-0011](adr/0011-transactional-data-directory-migration.md) içinde.
-- Symlink/reparse kaynakları reddedilir. Temizlik, root ve child bağlantılarının (kopyalanmayan logs dahil) eski staging'e yönelmesi ve case varyantları için regresyonlarla korundu. Unix bağlantı vakaları Mac'te koştu; Windows'ta ayrıcalık nedeniyle açıkça Skipped raporlanacak.
-- >24 saatlik, tam GUID adlı staging yalnız işlem kilidi alınabiliyorsa temizlenir. `TimeProvider`/sahte saat ile 24 saat sınırı, yeni/gelecek tarihli klasörler, etkin lease, kaynak/hedef koruması ve linkler doğrulandı. Bir eski aday bulunana kadar korunan ağaçlar taranmaz; link/tarama hatası varsa temizlik atlanır. Başka etkin denemeye dokunulmaz.
-- `Program.TryPrepareStorage` hata sonrası false/null döndürür; `Main` Türkçe mesajdan sonra exit code 1 ile logger/store kurmadan çıkar. Tanı `%TEMP%/makredo-migration-<guid>.log` dosyasına best-effort yazılır; tanı hatası mesajı engellemez. 11 Windows vakası fake gösterim ve geçici dizinlerle derlendi; gerçek mesaj kutusu gösterilmedi.
-- Gerçek kullanıcı veri klasörlerine erişilmedi; tüm test verileri sentetik/geçici. Windows startup/NTFS ACL/sharing ve mevcut Windows suite çalıştırılmadı (T0.7). `gh pr checks 3`: **no checks reported**, CI henüz yok; T0.4'ün Windows framework izleme listesi [PR #2](https://github.com/EnesGoker/Makredo/pull/2) içinde duruyor.
+## Son doğrulama — T0.5
+- `dotnet build -c Release`: **0 uyarı, 0 hata**; yedi proje ve mevcut Windows testleri derlendi. `dotnet format --verify-no-changes`: geçti.
+- `dotnet test tests/Makredo.Migration.Tests -c Release --no-build`: Mac'te **65 geçti, 0 başarısız, 0 atlanan**. Göç/log/kalıcılık kodu değişmedi; yeni test veya paket eklenmedi.
+- `git grep -nEi 'DllImport|LibraryImport|user32|kernel32' -- src/Makredo.Domain src/Makredo.Application src/Makredo.Infrastructure`: **çıktı boş, exit 1 (eşleşme yok)**. Genişletilmiş `NativeLibrary` taraması da boş.
+- Silmeden önce kod/proje grep'i `NullHotkeyService`, `NullKeyboardHookSource`, `NullMouseHookSource` için yalnız sınıf tanımını; `DefaultHotkeyConfiguration` için yalnız tanım ve kendi constructor'ını verdi. Harici kullanım yoktu. Kullanılan `NullAppLogger` korundu; kanıt PR'a eklenecek.
+- İki hook, `NativeMethods`, `WindowsInputPlaybackAdapter` ve `WindowsHotkeyService` yeni Platform assembly'sinde. Eski/yeni beş kaynakta yalnız namespace/import dönüşümleri var; gövdeler, P/Invoke/struct/delegate tanımları aynı. Tüketicilerde yalnız using değişti. MainForm/Profile, DPI/chrome, göç ve startup akışı değişmedi.
+- Platform `net10.0-windows`, `UseWindowsForms=true` (NativeWindow); yalnız Application/Domain'e bağlı. Infrastructure aynı iki Core projeye bağlı kalır; WinForms ve Windows testleri Platform'a doğrudan referans verir. Platform'un Infrastructure/WinForms proje bağımlılığı yoktur.
+- Gerçek girdi, uygulama veya Windows testleri çalıştırılmadı. CI T0.7'de kurulacak; native davranış/Windows runtime doğrulanmadı. UI'ye özgü `WindowChromeNative` ve `AppScale` WinForms'ta bırakıldı; genel hook/SendInput davranış düzeltmeleri Faz 1'e ayrıldı.
 
 ## Öğrenilenler ve tuzaklar
 - Mac'te `net10.0-windows` testleri **çalışmaz**. Derlenir ama koşmaz. Windows testlerinin sonucu CI'dan alınır.

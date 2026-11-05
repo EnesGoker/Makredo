@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Makredo.Infrastructure.Interop;
+namespace Makredo.Platform.Windows.Interop;
 
 internal static class NativeMethods
 {

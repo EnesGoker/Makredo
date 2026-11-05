@@ -1,13 +1,13 @@
 using Makredo.Application.Abstractions;
 using Makredo.Application.Services;
 using Makredo.Infrastructure.Diagnostics;
-using Makredo.Infrastructure.Hooks;
-using Makredo.Infrastructure.Interop;
 using Makredo.Infrastructure.Migration;
 using Makredo.Infrastructure.Persistence;
+using Makredo.Platform.Windows.Hooks;
+using Makredo.Platform.Windows.Hotkeys;
+using Makredo.Platform.Windows.Interop;
 using Makredo.WinForms.Composition.Migration;
 using Makredo.WinForms.Forms;
-using Makredo.WinForms.Platform;
 
 namespace Makredo.WinForms.Composition;
 

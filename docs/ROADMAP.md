@@ -94,7 +94,7 @@ Hedef: Makredo adıyla, .NET 10 üzerinde, Mac'te çekirdek testleri çalışan 
 
 **T0.5 — Platform katmanını ayır** `[M]`
 - Hook'ları, `SendInput`'u, `NativeMethods`'u ve `WindowsHotkeyService`'i `src/Makredo.Platform.Windows` (`net10.0-windows`) projesine taşı.
-- `Makredo.Infrastructure` taşınabilir kalsın: sadece kalıcılık ve log.
+- `Makredo.Infrastructure` taşınabilir kalsın: sadece kalıcılık, log ve göç.
 - Kullanılmayan `Null*` ve `Default*` sınıflarını sil (F-028).
 - **Kabul:** Domain, Application ve Infrastructure hiçbir Win32 çağrısı içermiyor. Katman yönü `AGENTS.md`'deki şemaya uyuyor.
 
