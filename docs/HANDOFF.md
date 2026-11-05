@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.8 — CI keşfi | codex | `codex/T0.8-ci-discovery` | Devam ediyor | Başlangıç: ayrı araç/workflow ile Windows x64/ARM64 WinForms PNG ve low-level hook + SendInput fizibilitesi. Deney GITHUB_ACTIONS=true dışında hemen çıkacak; normal test suite'ine girmez. Ürün koduna dokunulmayacak. Sonuç/kanıt ve Faz 1 kararı ADR-0003'e yazılacak. |
+| T0.8 — CI keşfi | codex | `codex/T0.8-ci-discovery` | Devam ediyor | Ayrı IsTestProject=false araç ve x64/ARM64 discovery workflow hazır. GITHUB_ACTIONS=true + Windows runner + açık bayrak yoksa UI/native/dosya öncesi exit2; workflow iki olumsuz kapı kontrolü yapar. Gerçek ekran CopyFromScreen+iki marker, etiketli F24/fare hook bayrakları+cleanup JSON/PNG artifact. Mac yalnız derleme (0 uyarı/hata). Sıradaki: PR deneyleri, gerçek kanıta göre ADR-0003. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 

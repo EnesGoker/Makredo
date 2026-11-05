@@ -6,4 +6,5 @@
   <Project Path="tests/Makredo.Windows.Tests/Makredo.Windows.Tests.csproj" Id="58b5370a-31d4-466c-a9e7-d617404bd321" />
   <Project Path="src/Makredo.WinForms/Makredo.WinForms.csproj" Id="167e2266-cd54-4324-9620-04e282d81884" />
   <Project Path="tests/Makredo.Core.Tests/Makredo.Core.Tests.csproj" Id="b127aaa9-b196-4e8a-98e7-960cb937836b" />
+  <Project Path="tools/Makredo.CiDiscovery/Makredo.CiDiscovery.csproj" Id="2607bfb0-558d-4c92-b73c-4f13c46a9701" />
 </Solution>
