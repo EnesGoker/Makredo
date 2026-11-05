@@ -3,7 +3,9 @@ using Makredo.Application.Services;
 using Makredo.Infrastructure.Diagnostics;
 using Makredo.Infrastructure.Hooks;
 using Makredo.Infrastructure.Interop;
+using Makredo.Infrastructure.Migration;
 using Makredo.Infrastructure.Persistence;
+using Makredo.WinForms.Composition.Migration;
 using Makredo.WinForms.Forms;
 using Makredo.WinForms.Platform;
 
@@ -57,9 +59,20 @@ internal sealed class AppCompositionRoot : IDisposable
         _disposables = disposables;
     }
 
-    public static AppCompositionRoot Create()
+    public static AppCompositionRoot Create(CancellationToken cancellationToken = default)
     {
-        return Create(AppStoragePaths.CreateDefault());
+        AppStoragePaths storagePaths = AppStoragePaths.CreateDefault();
+        string legacyDirectoryPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            LegacyStoragePaths.DirectoryName);
+
+        // Migration must finish before any logger or store can create the final directory.
+        new DataDirectoryMigrator().Migrate(
+            legacyDirectoryPath,
+            storagePaths.RootDirectoryPath,
+            cancellationToken);
+
+        return Create(storagePaths);
     }
 
     internal static AppCompositionRoot Create(

@@ -4,4 +4,5 @@
   <Project Path="src/Makredo.Infrastructure/Makredo.Infrastructure.csproj" Id="22eadc99-8e3b-4a6a-b3f3-7e5a07dcfc54" />
   <Project Path="tests/Makredo.Tests/Makredo.Tests.csproj" Id="58b5370a-31d4-466c-a9e7-d617404bd321" />
   <Project Path="src/Makredo.WinForms/Makredo.WinForms.csproj" Id="167e2266-cd54-4324-9620-04e282d81884" />
+  <Project Path="tests/Makredo.Migration.Tests/Makredo.Migration.Tests.csproj" Id="b127aaa9-b196-4e8a-98e7-960cb937836b" />
 </Solution>

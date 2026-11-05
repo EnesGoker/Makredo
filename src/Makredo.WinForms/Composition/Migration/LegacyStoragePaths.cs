@@ -2,6 +2,6 @@ namespace Makredo.WinForms.Composition.Migration;
 
 internal static class LegacyStoragePaths
 {
-    // Keep the existing data location until T0.3 adds the copy-once migration.
+    // Used only as the source of the copy-only data directory migration.
     public const string DirectoryName = "Polly";
 }

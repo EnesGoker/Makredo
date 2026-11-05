@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.3 — Veri klasörü göçü | codex | `codex/T0.3-data-migration` | Devam ediyor | Görev sahiplenildi. Sıradaki: taşınabilir geçici-klasör/rename göçü, Mac'te çalışan geçici klasör testleri ve ince WinForms çağrısı. Kaynak korunacak, logs atlanacak, hedef varsa üzerine yazılmayacak; kısayol değerleri T1.5'e kadar değişmeyecek. Gerçek kullanıcı veri klasörlerine erişilmedi. |
+| T0.3 — Veri klasörü göçü | codex | `codex/T0.3-data-migration` | Devam ediyor | Transactional staging/rename, marker ve WinForms çağrısı tamam; Mac'te 26/26 göç vakası geçti, Release build 0 uyarı/hata ve format geçti. Son incelemede library-state favori/son kullanım yollarının mutlak olduğu görüldü; kopyadaki Polly/macros referanslarını yeni Makredo/macros köküne uyarlama ve regresyonları sıradaki. Kaynak/gerçek kullanıcı verileri korunuyor; gerçek veri klasörlerine erişilmedi. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
@@ -42,6 +42,7 @@ Her soru için bir varsayılan var. Ajanlar cevap gelene kadar varsayılanla dev
 ## Sonraya (kapsam dışı görülenler)
 Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazılır: kısa açıklama, nerede görüldüğü, hangi görevde fark edildiği.
 - T0.4: .NET 10'a geçince 17 WinForms dosyasında 45 WFO1000 tasarım zamanı serialization tanısı oluştu. Kodla oluşturulan mevcut kontrollerin serialization davranışını korumak için yalnız `Makredo.WinForms.csproj` içinde WFO1000 bastırıldı. Bu proje kapsamı gelecekteki metadata eksiklerini de gizleyebilir; Faz 4 arayüz refaktöründe özelliklerin `DefaultValue`/`DesignerSerializationVisibility`/`ShouldSerialize` niyetleri belirlenip suppression kaldırılmalı.
+- T0.3: `Program` global hata handler'ını composition root'tan sonra kuruyor (mevcut F-017/T2.4). Göç hatası güvenli biçimde startup'ı durdurur; özel göç hata iletişimi/önceden loglama bu görevde eklenmedi.
 
 ## Son doğrulama — T0.4
 - `dotnet build -c Release`: **0 uyarı, 0 hata**, 67 test net10.0-windows için derlendi. `dotnet format --verify-no-changes`: geçti.
