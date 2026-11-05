@@ -2,26 +2,26 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.3 başladı
+**Son güncelleme:** 2026-11-06 · codex · T0.3 incelemede ([PR #3](https://github.com/EnesGoker/Makredo/pull/3))
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1/T0.2/T0.4 tamamlandı, T0.3 devam ediyor)
+- **Faz:** 0 — Kuruluş (T0.1/T0.2/T0.4 tamamlandı, T0.3 incelemede)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** T0.3 için yok; T0.4 squash merge edildi (`e1483b8`).
+- **Engel:** Teknik engel yok; T0.3 [PR #3](https://github.com/EnesGoker/Makredo/pull/3) Enes'in inceleme/birleştirmesini bekliyor.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.3 — Veri klasörü göçü | codex | `codex/T0.3-data-migration` | Devam ediyor | Göç ve kütüphane referans uyarlaması tamam; Mac'te 38/38 vaka geçti, Release build 0 uyarı/hata ve format geçti. Kaynak korunuyor, logs taşınmıyor, mevcut hedefe dokunulmuyor; hotkey içeriği T1.5'e bırakıldı. Sıradaki: PR ve son HANDOFF. Gerçek veri klasörlerine erişilmedi. |
+| T0.3 — Veri klasörü göçü | codex | `codex/T0.3-data-migration` | İncelemede | [PR #3](https://github.com/EnesGoker/Makredo/pull/3). Göç ve kütüphane referans uyarlaması tamam; Mac'te 38/38 vaka, Release build 0 uyarı/hata ve format geçti. Kaynak/mevcut hedef korunuyor, logs atlanıyor; hotkey dönüşümü T1.5'te. Gerçek veri klasörlerine erişilmedi; Windows startup/NTFS doğrulanmadı. Enes squash merge yapacak. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T0.3** Veri klasörü göçü (aktif)
-2. **T0.5** Platform katmanını ayır
-3. **T0.6** Test yapısı
-4. **T0.7** CI
+1. **T0.5** Platform katmanını ayır
+2. **T0.6** Test yapısı
+3. **T0.7** CI
+4. **T0.8** CI keşfi
 
 Faz 0 içinde T0.3 ile T0.4, T0.2 bittikten sonra paralel yürüyebilir. Sıra ve bağımlılıklar `docs/ROADMAP.md`'de.
 
@@ -51,7 +51,7 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - Favori/son kullanım yolları yalnız eski `macros/` içindeyse kopyadaki yeni köke uyarlandı; gerçek store ile favorite/tarih semantiği, dış yol sınırları, bilinmeyen alanlar, geçerli/geçersiz tarih çakışmaları ve bozuk/uygulanamaz JSON'da byte/mtime koruması test edildi.
 - Marker `.legacy-data-migration.json`, `version: 1` ve `hotkeyMigrationPending: true` içerir. Kısayol dosyası byte olarak aynı kalır; T1.5 gerçek varsayılan dönüşümünü yapacak. Tasarım [ADR-0011](adr/0011-transactional-data-directory-migration.md) içinde.
 - Symlink/reparse kaynakları güvenli biçimde reddedilir; üç symlink vakası Mac'te koştu. Windows'ta ayrıcalık gereksinimi nedeniyle bu vakalar açıkça Skipped raporlanacak. Hard-kill artığı staging klasörleri final sayılmaz, başka denemenin staging'i silinmez.
-- Gerçek kullanıcı veri klasörlerine erişilmedi; tüm test verileri sentetik/geçici. Windows startup/NTFS ACL/sharing ve mevcut Windows suite çalıştırılmadı (T0.7). CI henüz yok; T0.4'ün Windows framework izleme listesi [PR #2](https://github.com/EnesGoker/Makredo/pull/2) içinde duruyor.
+- Gerçek kullanıcı veri klasörlerine erişilmedi; tüm test verileri sentetik/geçici. Windows startup/NTFS ACL/sharing ve mevcut Windows suite çalıştırılmadı (T0.7). `gh pr checks 3`: **no checks reported**, CI henüz yok; T0.4'ün Windows framework izleme listesi [PR #2](https://github.com/EnesGoker/Makredo/pull/2) içinde duruyor.
 
 ## Öğrenilenler ve tuzaklar
 - Mac'te `net10.0-windows` testleri **çalışmaz**. Derlenir ama koşmaz. Windows testlerinin sonucu CI'dan alınır.
