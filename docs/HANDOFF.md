@@ -2,26 +2,26 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.4 başladı
+**Son güncelleme:** 2026-11-06 · codex · T0.4 incelemede ([PR #2](https://github.com/EnesGoker/Makredo/pull/2))
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1/T0.2 tamamlandı, T0.4 devam ediyor)
+- **Faz:** 0 — Kuruluş (T0.1/T0.2 tamamlandı, T0.4 incelemede)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** T0.4 için yok; T0.2 squash merge edildi. T0.3 paralel yürüyebilir.
+- **Engel:** T0.5 için T0.4 PR'ının birleşmesi bekleniyor; T0.3 paralel yürüyebilir.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.4 — .NET 10 | codex | `codex/T0.4-dotnet-10` | Devam ediyor | Dönüşüm tamam; Release build 0 uyarı/hata, format ve transitif güvenlik taraması geçti. Taşınabilir regresyon net10.0/yenilenen paketlerle 1/1 geçti; 67 test derlendi. WinForms'a yalnız WFO1000 suppression ve sabit kolonlara iki nullability annotation eklendi. Sıradaki: PR ve Windows davranış izleme listesi. SDK/hedefleme/ortak props ve depolama/göç kodu değişmedi. |
+| T0.4 — .NET 10 | codex | `codex/T0.4-dotnet-10` | İncelemede | [PR #2](https://github.com/EnesGoker/Makredo/pull/2). Release build 0 uyarı/hata; format ve transitif güvenlik taraması geçti. Taşınabilir regresyon net10.0'da 1/1 geçti; 67 test derlendi. PR'da DPI/PInvoke/nullable/WFO1000/test adapter Windows izleme listesi var. SDK/hedefleme/ortak props ve depolama/göç kodu değişmedi. Windows testleri T0.7'ye bırakıldı. Enes squash merge yapacak. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
 1. **T0.3** Veri klasörü göçü (T0.4 ile paralel yürüyebilir)
-2. **T0.4** .NET 10 (aktif; framework/paket dönüşümü)
-3. **T0.5** Platform katmanını ayır
-4. **T0.6** Test yapısı
+2. **T0.5** Platform katmanını ayır (T0.4 PR'ı birleştikten sonra)
+3. **T0.6** Test yapısı
+4. **T0.7** CI
 
 Faz 0 içinde T0.3 ile T0.4, T0.2 bittikten sonra paralel yürüyebilir. Sıra ve bağımlılıklar `docs/ROADMAP.md`'de.
 
@@ -49,7 +49,7 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - Mevcut `ProductIdentityTests.cs`, geçici dış `net10.0` xUnit harness'ında derlenmiş .NET 10 Domain/Application/Infrastructure assembly'leri ve yeni paketlerle Mac'te **1/1 geçti**. Windows suite çalıştırılmadı (T0.7); Core projesi henüz yok (T0.6). Denetimdeki iki eski kırmızı test değiştirilmedi.
 - Yeni analyzer suppression yalnız `src/Makredo.WinForms/Makredo.WinForms.csproj` içindeki **WFO1000**. `EventListControl` painting metodunda iki CS8602, `ConfigureGrid`'in oluşturduğu sabit `#`/`Type` kolonlarına `!` ile giderildi; yeni çalışma zamanı dalı yok. Önceki CA1859/CA1707 ve `8.0-recommended` analyzer profili değişmedi.
 - `global.json`, `Directory.Build.props`, `AppStoragePaths`, `Migration/`, Persistence ve kurallar değişmedi; T0.3'e müdahale edilmedi. 67 test korundu. Uygulama, Windows testi veya gerçek girdi gönderen bir test çalıştırılmadı.
-- PR'da T0.7 için ayrı Windows izleme listesi olacak: SystemAware/manuel DPI ölçekleme, çizim/kolon varsayımları, x64/ARM64 P/Invoke/INPUT boyutları ve hook/hotkey yaşam döngüsü, analyzer suppression, güncel test adapter discovery/kapanışı. CI henüz yok (T0.7).
+- [PR #2](https://github.com/EnesGoker/Makredo/pull/2) içinde T0.7 için ayrı Windows izleme listesi var: SystemAware/manuel DPI ölçekleme, çizim/kolon varsayımları, x64/ARM64 P/Invoke/INPUT boyutları ve hook/hotkey yaşam döngüsü, analyzer suppression, güncel test adapter discovery/kapanışı. CI henüz yok (T0.7).
 
 ## Öğrenilenler ve tuzaklar
 - Mac'te `net10.0-windows` testleri **çalışmaz**. Derlenir ama koşmaz. Windows testlerinin sonucu CI'dan alınır.
