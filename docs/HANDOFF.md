@@ -2,10 +2,10 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-05 · codex · T0.1 tamamlandı
+**Son güncelleme:** 2026-11-05 · codex · T0.2 başladı
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1 tamamlandı)
+- **Faz:** 0 — Kuruluş (T0.1 tamamlandı, T0.2 devam ediyor)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
 - **Engel:** T0.2 için teknik engel yok. M0.1'in durumu doğrulanmadı; Enes T0.1'in başlamasını açıkça istedi, manuel takip sürüyor.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| T0.2 — Ad dönüşümü ve yapı 🔒 | codex | `codex/T0.2-rename-and-layout` | Devam ediyor | Görev sahiplenildi. `MainForm` ve `AppShellLayoutProfile` kilitli. Sıradaki: kaynak/proje yolları ve adları, merkezi ürün adı, build ve statik doğrulama. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
