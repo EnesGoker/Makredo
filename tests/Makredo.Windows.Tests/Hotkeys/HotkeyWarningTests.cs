@@ -72,6 +72,12 @@ public sealed class HotkeyWarningTests
         Assert.True(measured.Width <= record.Width - 8, $"Hint width {measured.Width} exceeds button {record.Width}.");
         Assert.True(measured.Height <= record.Height - 8, $"Hint height {measured.Height} exceeds button {record.Height}.");
         SaveScreenshot(form, "hotkey-default-toolbar.png");
+        toolbar.UpdatePlaybackButton(PlaybackButtonState.Pause);
+        Assert.Contains(Descendants(toolbar).OfType<Button>(), button => button.Text == "Duraklat");
+        toolbar.SetHotkeyHints("Ctrl+Shift+Alt+R", "Ctrl+Shift+Alt+P", "Ctrl+Shift+Alt+P", null);
+        Assert.Contains(Descendants(toolbar).OfType<Button>(), button => button.Text == "Duraklat");
+        toolbar.UpdatePlaybackButton(PlaybackButtonState.Resume);
+        Assert.Contains(Descendants(toolbar).OfType<Button>(), button => button.Text == "Devam Et");
         return Task.CompletedTask;
     });
 
