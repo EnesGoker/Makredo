@@ -40,10 +40,12 @@ public sealed class InjectedSettingsTests(ITestOutputHelper output)
         Assert.Equal(1, changed);
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true")
         {
-            Directory.CreateDirectory("artifacts/test-results");
+            string workspace = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE") ?? throw new InvalidOperationException("CI workspace is required.");
+            string directory = Path.Combine(workspace, "artifacts", "test-results");
+            Directory.CreateDirectory(directory);
             using var bitmap = new Bitmap(control.Width, control.Height);
             control.DrawToBitmap(bitmap, control.ClientRectangle);
-            bitmap.Save("artifacts/test-results/injected-settings.png", ImageFormat.Png);
+            bitmap.Save(Path.Combine(directory, "injected-settings.png"), ImageFormat.Png);
         }
     }
 
