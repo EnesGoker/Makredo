@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using Makredo.Application.Abstractions;
 using Makredo.Domain.Enums;
 
@@ -17,8 +18,11 @@ public sealed class ApplicationStateService : IApplicationStateService
         };
 
     private readonly object _syncRoot = new();
+    private readonly Queue<StateNotification> _pendingNotifications = new();
     private AppState _currentState = AppState.Idle;
+    private bool _publishingNotifications;
 
+    /// <summary>Gets the latest committed state, which can be newer than a queued notification.</summary>
     public AppState CurrentState
     {
         get
@@ -30,6 +34,12 @@ public sealed class ApplicationStateService : IApplicationStateService
         }
     }
 
+    /// <summary>Publishes committed transitions in order, outside the state lock.</summary>
+    /// <remarks>
+    /// Subscribers are captured when the transition commits. Reentrant or concurrent transitions
+    /// can return before their notifications are delivered. A subscriber exception stops the rest
+    /// of that notification; queued notifications drain before the publisher rethrows the first exception.
+    /// </remarks>
     public event Action<AppState>? StateChanged;
 
     public bool IsState(AppState state)
@@ -54,13 +64,13 @@ public sealed class ApplicationStateService : IApplicationStateService
     {
         ArgumentNullException.ThrowIfNull(allowedCurrentStates);
 
-        AppState? changedState = null;
+        bool publish;
 
         lock (_syncRoot)
         {
             if (_currentState == newState)
             {
-                return true;
+                return allowedCurrentStates.Contains(_currentState);
             }
 
             if (allowedCurrentStates.Length > 0 && !allowedCurrentStates.Contains(_currentState))
@@ -70,16 +80,20 @@ public sealed class ApplicationStateService : IApplicationStateService
 
             EnsureTransitionIsAllowed(_currentState, newState);
             _currentState = newState;
-            changedState = newState;
+            publish = EnqueueNotificationUnsafe(newState);
         }
 
-        StateChanged?.Invoke(changedState.Value);
+        if (publish)
+        {
+            PublishNotifications();
+        }
+
         return true;
     }
 
     public void SetState(AppState state)
     {
-        AppState? changedState = null;
+        bool publish;
 
         lock (_syncRoot)
         {
@@ -90,10 +104,53 @@ public sealed class ApplicationStateService : IApplicationStateService
 
             EnsureTransitionIsAllowed(_currentState, state);
             _currentState = state;
-            changedState = state;
+            publish = EnqueueNotificationUnsafe(state);
         }
 
-        StateChanged?.Invoke(changedState.Value);
+        if (publish)
+        {
+            PublishNotifications();
+        }
+    }
+
+    private bool EnqueueNotificationUnsafe(AppState state)
+    {
+        _pendingNotifications.Enqueue(new StateNotification(state, StateChanged));
+        if (_publishingNotifications)
+        {
+            return false;
+        }
+
+        _publishingNotifications = true;
+        return true;
+    }
+
+    private void PublishNotifications()
+    {
+        ExceptionDispatchInfo? firstFailure = null;
+        while (true)
+        {
+            StateNotification notification;
+            lock (_syncRoot)
+            {
+                if (!_pendingNotifications.TryDequeue(out notification))
+                {
+                    _publishingNotifications = false;
+                    break;
+                }
+            }
+
+            try
+            {
+                notification.Subscribers?.Invoke(notification.State);
+            }
+            catch (Exception exception)
+            {
+                firstFailure ??= ExceptionDispatchInfo.Capture(exception);
+            }
+        }
+
+        firstFailure?.Throw();
     }
 
     private static void EnsureTransitionIsAllowed(AppState currentState, AppState newState)
@@ -105,4 +162,6 @@ public sealed class ApplicationStateService : IApplicationStateService
                 $"Gecersiz uygulama durumu gecisi: {currentState} -> {newState}");
         }
     }
+
+    private readonly record struct StateNotification(AppState State, Action<AppState>? Subscribers);
 }

@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T1.1 — Durum makinesi ve tek uçuş | codex | `codex/T1.1-state-machine` | Devam ediyor | TDD kırmızı checkpoint: Concurrency altında 7 metot/10 vaka; yerelde 8 başarısız, 2 geçti (R1×2, R2×2, R4, R9 ve reentrant/concurrent olay sırası). Release build 0 uyarı/hata. Üretim kodu aynı; sıradaki taslak PR kırmızı CI kanıtı, sonra sahiplik/tek uçuş ve FIFO olay yayın düzeltmesi. 100 tekrar sonrasında raporlanacak. |
+| T1.1 — Durum makinesi ve tek uçuş | codex | `codex/T1.1-state-machine` | Devam ediyor | [PR #9](https://github.com/EnesGoker/Makredo/pull/9). Kırmızı kanıt: f3468dc / CI 42186380050 (130 Core, 8 beklenen hata); ilk regresyonlar değişmedi. Sahiplik/ortak Start-Stop task'ları ve FIFO olay yayını düzeltildi; yerelde Core 145/145, Release 0 uyarı/hata. ADR-0013 ve changelog hazır. Sıradaki yeşil CI ve 25 Concurrency vakasının 100 tekrar (2500 geçiş) artifact kanıtı. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
@@ -43,6 +43,8 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - T0.4: .NET 10'a geçince 17 WinForms dosyasında 45 WFO1000 tasarım zamanı serialization tanısı oluştu. Kodla oluşturulan mevcut kontrollerin serialization davranışını korumak için yalnız `Makredo.WinForms.csproj` içinde WFO1000 bastırıldı. Bu proje kapsamı gelecekteki metadata eksiklerini de gizleyebilir; Faz 4 arayüz refaktöründe özelliklerin `DefaultValue`/`DesignerSerializationVisibility`/`ShouldSerialize` niyetleri belirlenip suppression kaldırılmalı.
 - T0.3 düzeltmesi yalnız göç/hazırlık hatasını WinForms'ta yakalar; mesaj ve best-effort geçici tanı sonrası uygulama başlamaz. Diğer composition/logger kurulum hatalarının genel işlenmesi mevcut F-017/T2.4 kapsamındadır.
 - T0.5: Hook/SendInput davranışları taşınırken değiştirilmedi. Basılı girdilerin bırakılması F-001/T1.2, fiziksel acil durdurma F-002/T1.6 kapsamındadır; yeni yollar `src/Makredo.Platform.Windows/Hooks` ve `Interop` altındadır.
+
+- T1.1 incelemesi: Recorder.Clear yalnız Recording durumunu reddediyor; asenkron Stop sırasında Stopping iken tamponları silebilir. Bu görev Start/Play/Stop sahipliğini düzeltir; Clear/oturum belgesi davranışı T1.7 sırasında ele alınmalı. AppCompositionRoot mevcut MacroPlaybackService IDisposable nesnesini disposable listesine almıyor; servis ömrü/Shutdown hata yönetimiyle birlikte ayrıca değerlendirilmeli.
 
 ## Son doğrulama — T0.8
 - [PR #8](https://github.com/EnesGoker/Makredo/pull/8), araç kaynak SHA `c0ebeb3`; [ayrı discovery 42132475118](https://github.com/EnesGoker/Makredo/actions/runs/42132475118). Gerçek rapor/PNG ve Faz 1 kararı [ADR-0003](adr/0003-test-and-ci-strategy.md)'te; kanıt artifact linkleri orada.
