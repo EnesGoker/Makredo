@@ -1,8 +1,8 @@
 # Makredo — Yol Haritası (v0.9.0-beta → v1.0.0)
 
-Sürüm 3 · 5 Kasım 2026 · Dayanak: `docs/audit/AUDIT-2026-11-05.md` (F-xxx bulguları)
+Sürüm 3 · 5 Kasım 2026 · Dayanak: iç teknik denetim. F-kodları iç denetim bulgularıdır.
 
-Bu belge **planı** anlatır. Hangi görevin kimde olduğu, nerede kaldığı gibi canlı durum `docs/HANDOFF.md` dosyasındadır. Ajanların çalışma kuralları `AGENTS.md` dosyasındadır.
+Bu belge **planı** anlatır. Görevlerin uygulama ve doğrulama ayrıntıları ilgili PR'larda, alınan teknik kararlar `docs/adr/` dizininde kayıtlıdır.
 
 ## 1. Hedef
 Makredo'yu gerçek kullanıcılara dağıtılabilecek, güvenli ve kurumsal kalitede bir makro kaydediciye dönüştürmek. Konumlandırma: **"Modern, ücretsiz, açık kaynak ve güvenli bir TinyTask."**
@@ -59,11 +59,11 @@ Hedef: Makredo adıyla, .NET 10 üzerinde, Mac'te çekirdek testleri çalışan 
 
 **T0.1 — İçe aktarma** `[S]`
 - `MacroMaster@837fe75`'i GitHub'dan al. Geçmişi taşıma; tek bir commit at: `chore: import source from MacroMaster@837fe75` (gövdesinde kaynak repo ve commit'in tam adresi).
-- Enes'in verdiği başlangıç kitini aynı klasör yapısıyla ekle: `AGENTS.md`, `CLAUDE.md`, `docs/ROADMAP.md`, `docs/HANDOFF.md`, `docs/audit/AUDIT-2026-11-05.md`.
+- Başlangıç planını `docs/ROADMAP.md` altında, teknik kararları `docs/adr/` altında ekle.
 - `docs/adr/0001-new-repo-and-name.md` ve `docs/adr/0002-dotnet-10.md` dosyalarını bu belgenin 2. bölümündeki kararlardan yaz.
-- Eski çalışma klasöründeki `ROADMAP.md`, `ROADMAP-v2.md`, `OPUS-GOREV-00.md` ve redakte edilmemiş `AUDIT.md` repoya **alınmaz**.
+- Eski çalışma klasöründeki önceki plan sürümleri ve yayıma hazırlanmamış denetim notları repoya **alınmaz**.
 - `installer/PollyInstaller.iss` dosyasındaki kişisel mutlak yol **ilk commit'e girmez**. Yerine geçici olarak `<REPO_DIR>` yer tutucusu yazılır, kalıcı çözüm T3.3'te.
-- **Kabul:** `main`'de import commit'i ve kit commit'i var. Repoda gerçek kullanıcı adı içeren yol yok (denetim raporundakiler `<kullanıcı>` ile maskeli): `git grep -nE 'Users\\[[:alpha:]]'` boş dönmeli.
+- **Kabul:** `main`'de import commit'i ve kit commit'i var. Repoda gerçek kullanıcı adı içeren yol yok: `git grep -nE 'Users\\[[:alpha:]]'` boş dönmeli.
 
 **T0.2 — Ad dönüşümü ve yapı** `[M]` 🔒 · F-018, F-032
 - Projeleri, namespace'leri ve assembly'leri `Makredo.*` olarak yeniden adlandır. Exe adı `Makredo.exe`.
@@ -96,7 +96,7 @@ Hedef: Makredo adıyla, .NET 10 üzerinde, Mac'te çekirdek testleri çalışan 
 - Hook'ları, `SendInput`'u, `NativeMethods`'u ve `WindowsHotkeyService`'i `src/Makredo.Platform.Windows` (`net10.0-windows`) projesine taşı.
 - `Makredo.Infrastructure` taşınabilir kalsın: sadece kalıcılık, log ve göç.
 - Kullanılmayan `Null*` ve `Default*` sınıflarını sil (F-028).
-- **Kabul:** Domain, Application ve Infrastructure hiçbir Win32 çağrısı içermiyor. Katman yönü `AGENTS.md`'deki şemaya uyuyor.
+- **Kabul:** Domain, Application ve Infrastructure hiçbir Win32 çağrısı içermiyor. Katman bağımlılıkları içe doğru ilerliyor: `Domain ← Application ← Infrastructure/Platform.Windows ← WinForms`.
 
 **T0.6 — Test yapısı** `[M]` · F-010, F-023
 - `MacroMaster.Tests/Program.cs` dosyasını alanlara göre dosyalara böl. Hedef projeler: `tests/Makredo.Core.Tests` ve `tests/Makredo.Windows.Tests`.
@@ -113,7 +113,7 @@ Hedef: Makredo adıyla, .NET 10 üzerinde, Mac'te çekirdek testleri çalışan 
   - `windows-11-arm`: tüm testler.
 - `.github/dependabot.yml` (NuGet ve GitHub Actions) ekle.
 - **T0.2'de tamamlandı:** `.gitattributes` metin/binary ve CRLF kurallarını tanımlıyor; `git add --renormalize .` uygulandı. T0.7'de yeniden ekleme/normalizasyon işi yok.
-- PR şablonu ekle (`AGENTS.md` §4'teki başlıklarla).
+- PR şablonunda **Ne yapıldı**, **Nasıl doğrulandı**, **Doğrulanmayanlar** ve **Ekran görüntüsü** başlıkları olsun.
 - **Kabul:** Bir test PR'ında üç işin hepsi yeşil. T0.2'de yapılan satır sonu normalizasyonu `.gitattributes` ile korunuyor.
 
 **T0.8 — CI keşfi** `[S]` · ADR-003
@@ -285,7 +285,7 @@ Hedef: Kritik bulguların hepsinin kapanması. Tuş takılı kalmamalı, makro h
 
 **T4.3 — Kendi çizilen kontroller ve DPI** `[M]` × birkaç alt görev
 - `ModernSelect`, `ModernScrollBar`, `ModernCheckBox`, `ModernNumericInput`, `TitleBarControl`, `DashboardCard` ve `MacroPreviewMapControl` kontrollerinde `DeviceDpi`, `LogicalToDeviceUnits` ve `DpiChangedAfterParent` kullan.
-- Her kontrol ayrı bir commit ya da alt görevdir (T4.3a, T4.3b…). Bu sayede ajanlar arasında rahat devredilir.
+- Her kontrol ayrı bir commit ya da alt görevdir (T4.3a, T4.3b…). Bu sayede ilerleme ayrı ayrı izlenir ve doğrulanır.
 
 **T4.4 — Layout testleri ve ekran görüntüsü regresyonu** `[M]` · CI-Win
 - Her formu birkaç boyutta açan Windows testleri yaz. Kontroller:
