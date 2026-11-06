@@ -96,7 +96,7 @@ jobs:
           ./scripts/check-package-audit.ps1 -SelfTest
           dotnet list package --vulnerable --include-transitive --format json --output-version 1 --no-restore > artifacts/package-audit.json
           if ($LASTEXITCODE -ne 0) { throw 'Package audit command failed.' }
-          ./scripts/check-package-audit.ps1 -ReportPath artifacts/package-audit.json -ExpectedProjects 7
+          ./scripts/check-package-audit.ps1 -ReportPath artifacts/package-audit.json -ExpectedProjects (([xml](Get-Content Makredo.slnx -Raw)).Solution.Project.Count)
       - name: Upload test results and package audit
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
