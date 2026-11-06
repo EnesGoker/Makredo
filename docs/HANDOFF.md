@@ -13,7 +13,7 @@ Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev s
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T1.1 — Durum makinesi ve tek uçuş | codex | `codex/T1.1-state-machine` | Devam ediyor | TDD: önce R1/R2/R4/R9 deterministik Core regresyonları ayrı commit ve kırmızı PR CI; sonra tek uçuş/durum olayı sırası düzeltmeleri. Yarış testleri TCS/bariyer ile; 100 tekrar kanıtı hazırlanacak. T1.2/T1.3/T1.6 kapsamına dokunulmayacak. |
+| T1.1 — Durum makinesi ve tek uçuş | codex | `codex/T1.1-state-machine` | Devam ediyor | TDD kırmızı checkpoint: Concurrency altında 7 metot/10 vaka; yerelde 8 başarısız, 2 geçti (R1×2, R2×2, R4, R9 ve reentrant/concurrent olay sırası). Release build 0 uyarı/hata. Üretim kodu aynı; sıradaki taslak PR kırmızı CI kanıtı, sonra sahiplik/tek uçuş ve FIFO olay yayın düzeltmesi. 100 tekrar sonrasında raporlanacak. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
