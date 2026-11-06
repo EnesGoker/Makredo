@@ -143,7 +143,7 @@ public sealed class HookThreadIntegrationTests(ITestOutputHelper output)
         });
     }
 
-    private static Task RunOnStaAsync(Func<Task> test)
+    internal static Task RunOnStaAsync(Func<Task> test)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
