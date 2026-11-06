@@ -4,6 +4,8 @@ namespace Makredo.Application.Abstractions;
 
 public interface IMacroRecorderService
 {
+    bool RecordInjectedInput { get; set; }
+
     bool IsRecording { get; }
 
     /// <summary>

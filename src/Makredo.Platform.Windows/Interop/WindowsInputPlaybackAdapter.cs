@@ -124,28 +124,26 @@ public sealed class WindowsInputPlaybackAdapter : IInputPlaybackAdapter, ICursor
                 $"Fare {actionName} oynatimi icin hem X hem de Y koordinati gerekir.");
         }
 
-        bool result = NativeMethods.SetCursorPos(x.Value, y.Value);
-
-        if (!result)
-        {
-            ThrowWin32Exception("Fare imleci tasinamadi.");
-        }
+        MoveCursor(x, y);
     }
 
     private void MoveCursor(int? x, int? y)
     {
-        if (!x.HasValue || !y.HasValue)
-        {
-            throw new InvalidOperationException(
-                "Fare hareketi oynatimi icin hem X hem de Y koordinati gerekir.");
-        }
+        if (!x.HasValue || !y.HasValue) { throw new InvalidOperationException("Fare hareketi için X ve Y gerekir."); }
+        int left = NativeMethods.GetSystemMetrics(76);
+        int top = NativeMethods.GetSystemMetrics(77);
+        int width = NativeMethods.GetSystemMetrics(78);
+        int height = NativeMethods.GetSystemMetrics(79);
+        if (width <= 0 || height <= 0) { ThrowWin32Exception("Sanal ekran boyutu okunamadı."); }
+        SendMouseInput(0x0001 | 0x8000 | 0x4000, 0,
+            NormalizeCoordinate(x.Value, left, width), NormalizeCoordinate(y.Value, top, height));
+    }
 
-        bool result = NativeMethods.SetCursorPos(x.Value, y.Value);
-
-        if (!result)
-        {
-            ThrowWin32Exception("Fare imleci tasinamadi.");
-        }
+    internal static int NormalizeCoordinate(int coordinate, int origin, int size)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
+        long offset = Math.Clamp((long)coordinate - origin, 0, size - 1L);
+        return (int)Math.Clamp((offset * 65536L + 32768L) / size, 0, 65535);
     }
 
     private static int GetRequiredWheelDelta(MacroEvent macroEvent)
@@ -253,7 +251,7 @@ public sealed class WindowsInputPlaybackAdapter : IInputPlaybackAdapter, ICursor
         return Task.CompletedTask;
     }
 
-    private void SendMouseInput(uint flags, uint mouseData = 0)
+    private void SendMouseInput(uint flags, uint mouseData = 0, int dx = 0, int dy = 0)
     {
         NativeMethods.INPUT[] inputs =
         [
@@ -264,12 +262,12 @@ public sealed class WindowsInputPlaybackAdapter : IInputPlaybackAdapter, ICursor
                 {
                     mi = new NativeMethods.MOUSEINPUT
                     {
-                        dx = 0,
-                        dy = 0,
+                        dx = dx,
+                        dy = dy,
                         mouseData = mouseData,
                         dwFlags = flags,
                         time = 0,
-                        dwExtraInfo = IntPtr.Zero
+                        dwExtraInfo = new IntPtr(unchecked((long)InputOriginPolicy.PlaybackSignature))
                     }
                 }
             }
@@ -324,7 +322,7 @@ public sealed class WindowsInputPlaybackAdapter : IInputPlaybackAdapter, ICursor
                         wScan = scanCode,
                         dwFlags = flags,
                         time = 0,
-                        dwExtraInfo = IntPtr.Zero
+                        dwExtraInfo = new IntPtr(unchecked((long)InputOriginPolicy.PlaybackSignature))
                     }
                 }
             }

@@ -116,6 +116,7 @@ jobs:
           name: test-results-windows-x64
           path: |
             artifacts/test-results/**/*.trx
+            artifacts/test-results/**/*.png
             artifacts/package-audit.json
           if-no-files-found: error
           retention-days: 14

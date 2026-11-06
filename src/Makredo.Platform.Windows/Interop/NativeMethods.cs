@@ -39,6 +39,9 @@ internal static class NativeMethods
 
     internal const uint KbdLlHookFlagExtended = 0x01;
 
+    [DllImport("user32.dll")]
+    internal static extern int GetSystemMetrics(int index);
+
     internal delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll", SetLastError = true)]

@@ -50,7 +50,7 @@ public sealed class WindowsMouseHookSource : ITimestampedMouseHookSource, IDispo
         };
         if (action == MouseActionType.None) { return; }
         int? wheel = action == MouseActionType.Wheel ? unchecked((short)(sample.MouseData >> 16)) : null;
-        var activity = new MouseActivityInfo(action, sample.X, sample.Y, wheel, sample.TimestampUtc);
+        var activity = new MouseActivityInfo(action, sample.X, sample.Y, wheel, sample.TimestampUtc, (sample.Flags & 0x01) != 0, sample.ExtraInfo);
         foreach (Action<MouseActivityInfo> handler in TimestampedMouseActivityReceived?.GetInvocationList() ?? [])
         {
             try { handler(activity); }

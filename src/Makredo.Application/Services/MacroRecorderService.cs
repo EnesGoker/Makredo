@@ -43,6 +43,9 @@ public sealed class MacroRecorderService : IMacroRecorderService
         _logger = logger ?? NullAppLogger.Instance;
     }
 
+    private volatile bool _recordInjectedInput = true;
+    public bool RecordInjectedInput { get => _recordInjectedInput; set => _recordInjectedInput = value; }
+
     public bool IsRecording => _applicationStateService.IsState(AppState.Recording);
 
     public MacroSession? CurrentSession
@@ -393,6 +396,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
 
     private void OnKeyboardActivityReceived(KeyboardActivityInfo keyboardActivity)
     {
+        if (!InputOriginPolicy.ShouldRecord(keyboardActivity.IsInjected, keyboardActivity.ExtraInfo, RecordInjectedInput)) { return; }
         List<MacroEvent>? eventsToPublish = null;
 
         lock (_syncRoot)
@@ -433,6 +437,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
 
     private void OnTimestampedMouseActivityReceived(MouseActivityInfo activity)
     {
+        if (!InputOriginPolicy.ShouldRecord(activity.IsInjected, activity.ExtraInfo, RecordInjectedInput)) { return; }
         List<MacroEvent>? eventsToPublish = null;
 
         lock (_syncRoot)
