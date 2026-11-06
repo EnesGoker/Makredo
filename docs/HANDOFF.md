@@ -2,23 +2,23 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T0.8 incelemede ([PR #8](https://github.com/EnesGoker/Makredo/pull/8))
+**Son güncelleme:** 2026-11-06 · codex · T1.1 başladı
 
 ## Durum
-- **Faz:** 0 — Kuruluş (T0.1–T0.7 tamamlandı, T0.8 incelemede)
+- **Faz:** 1 — Güvenlik ve veri (Faz 0 tamamlandı, T1.1 devam ediyor)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** Teknik engel yok; T0.8 [PR #8](https://github.com/EnesGoker/Makredo/pull/8) incelemesini bekliyor. Main yalnız squash PR ve üç zorunlu CI kontrolüyle korunuyor.
+- **Engel:** T1.1 için yok. Main yalnız squash PR ve üç zorunlu CI kontrolüyle korunuyor.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T0.8 — CI keşfi | codex | `codex/T0.8-ci-discovery` | İncelemede | [PR #8](https://github.com/EnesGoker/Makredo/pull/8), [ADR-0003](adr/0003-test-and-ci-strategy.md). İlk [deney 42132475118](https://github.com/EnesGoker/Makredo/actions/runs/42132475118): x64 gerçek form PNG doğrulandı; ARM64 PNG privacy setup gösteriyor, form yakalama henüz doğrulanmadı. Her iki mimaride hook/SendInput 4/4, klavye 0x10/0x90 ve fare 0x01, cleanup başarılı. [CI 42132475038](https://github.com/EnesGoker/Makredo/actions/runs/42132475038) üç iş yeşil. Son doküman SHA'sının kontrolleri PR açıklamasında; ürün/test dosyaları değişmedi. |
+| T1.1 — Durum makinesi ve tek uçuş | codex | `codex/T1.1-state-machine` | Devam ediyor | TDD: önce R1/R2/R4/R9 deterministik Core regresyonları ayrı commit ve kırmızı PR CI; sonra tek uçuş/durum olayı sırası düzeltmeleri. Yarış testleri TCS/bariyer ile; 100 tekrar kanıtı hazırlanacak. T1.2/T1.3/T1.6 kapsamına dokunulmayacak. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T1.1** Durum makinesi ve tek uçuş
+1. **T1.1** Durum makinesi ve tek uçuş (aktif)
 2. **T1.2** Basılı girdileri bırakma
 3. **T1.3** Hook'ları ayrı thread'e taşı
 
@@ -79,3 +79,4 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 | T0.5 — Platform katmanı | [PR #4](https://github.com/EnesGoker/Makredo/pull/4), squash merge `001acea3ce5050a31ff72499648cadea3a2bdfa0` | 2026-11-06 | codex |
 | T0.6 — Test yapısı | [PR #5](https://github.com/EnesGoker/Makredo/pull/5), squash merge `462c32cba5eee136b841836b6c02e9baa1a1adcb` | 2026-11-06 | codex |
 | T0.7 — CI | [PR #6](https://github.com/EnesGoker/Makredo/pull/6), squash merge `e2f7732c33cc72dcd155f6b98cfda238b0ae44a8` | 2026-11-06 | codex |
+| T0.8 — CI keşfi | [PR #8](https://github.com/EnesGoker/Makredo/pull/8), squash merge `2861670cdf668d00504e7ebd0898bdefa926071f` | 2026-11-06 | codex |
