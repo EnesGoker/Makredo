@@ -38,7 +38,7 @@ function Get-TestInventory {
             }
             if ($line -match '^\s*public\s+(?:(?:async|static)\s+)*(?:Task(?:<[^>]+>)?|void)\s+(\w+)\s*\(') {
                 $method = $Matches[1]
-                $testAttributes = @($attributes | Where-Object { $_ -match '^\[(Fact|Theory|UnixTheory)\b' })
+                $testAttributes = @($attributes | Where-Object { $_ -match '^\[(Fact|Theory|UnixTheory|HostedWindowsInputFact)\b' })
                 if ($testAttributes.Count -gt 0) {
                     if (-not $namespace -or -not $className) { throw "Missing test type in $($file.FullName)" }
                     if ($testAttributes.Count -ne 1) { throw "Ambiguous test attributes: $method" }
