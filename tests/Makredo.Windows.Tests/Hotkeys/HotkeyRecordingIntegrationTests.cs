@@ -15,7 +15,7 @@ namespace Makredo.Windows.Tests.Hotkeys;
 public sealed class HotkeyRecordingIntegrationTests
 {
     [HostedWindowsInputFact]
-    public Task RealStartAndStopChordsLeaveOnlyUserTypingInRecording() => HookThreadIntegrationTests.RunOnStaAsync(async () =>
+    public Task RealHeldStartAndStopChordsLeaveOnlyUserTypingInRecording() => HookThreadIntegrationTests.RunOnStaAsync(async () =>
     {
         HostedWindowsInputFactAttribute.RequireHostedWindowsCi();
         var (keyboard, mouse) = WindowsHookSources.Create();
@@ -44,7 +44,11 @@ public sealed class HotkeyRecordingIntegrationTests
         {
             await Task.Run(PressChord);
             await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
-            await Task.Run(() => { ReleaseChord(); Send(0x42, false); Send(0x42, true); });
+            await Task.Run(() =>
+            {
+                for (int repeat = 0; repeat < 5; repeat++) { Send(0x52, false); }
+                ReleaseChord(); Send(0x42, false); Send(0x42, true);
+            });
             await typed.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
             Assert.True(recorder.IsRecording);
             await Task.Run(PressChord);
