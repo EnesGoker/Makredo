@@ -17,6 +17,13 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
     private volatile bool _stopRequested;
     private bool _playbackCompleting;
     private TaskCompletionSource? _stopFlight;
+    private TaskCompletionSource? _playbackCompletion;
+    private TaskCompletionSource? _disposeFlight;
+    private TaskCompletionSource? _manualOperationsDrained;
+    private int _manualOperationCount;
+    private bool _shutdownRequested;
+    private bool _resourcesDisposed;
+    private HeldInputTracker? _heldInputs;
     private CancellationTokenSource? _playbackCancellationTokenSource;
     private TaskCompletionSource<bool> _resumeSignal = CreateResumeSignal(signaled: true);
     private PlaybackCoordinateResolver? _activeCoordinateResolver;
@@ -48,16 +55,59 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
 
     public void Dispose()
     {
-        PlaybackCoordinateResolver? activeCoordinateResolver;
-
         lock (_syncRoot)
         {
-            activeCoordinateResolver = _activeCoordinateResolver;
-            _activeCoordinateResolver = null;
+            if (_resourcesDisposed) { return; }
+            if (_playbackCancellationTokenSource is not null || _manualOperationCount != 0)
+            {
+                throw new InvalidOperationException("Etkin oynatmayı kapatmak için DisposeAsync beklenmelidir.");
+            }
+            _shutdownRequested = true;
+            _resourcesDisposed = true;
         }
-
-        activeCoordinateResolver?.Dispose();
         _eventExecutionGate.Dispose();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        TaskCompletionSource flight;
+        Task playbackCompletion;
+        Task manualOperations;
+        lock (_syncRoot)
+        {
+            if (_disposeFlight is not null) { return new ValueTask(_disposeFlight.Task); }
+            if (_resourcesDisposed) { return ValueTask.CompletedTask; }
+            _shutdownRequested = true;
+            flight = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _disposeFlight = flight;
+            playbackCompletion = _playbackCompletion?.Task ?? Task.CompletedTask;
+            manualOperations = _manualOperationsDrained?.Task ?? Task.CompletedTask;
+        }
+        _ = CompleteDisposalAsync(flight, playbackCompletion, manualOperations);
+        return new ValueTask(flight.Task);
+    }
+
+    private async Task CompleteDisposalAsync(TaskCompletionSource flight, Task playbackCompletion, Task manualOperations)
+    {
+        try
+        {
+            try
+            {
+                await StopAsync();
+            }
+            finally
+            {
+                // Stop is request-only; shutdown also waits for release and final notifications.
+                await playbackCompletion;
+                await manualOperations;
+                Dispose();
+            }
+            flight.TrySetResult();
+        }
+        catch (Exception exception)
+        {
+            flight.TrySetException(exception);
+        }
     }
 
     public async Task PlayAsync(
@@ -81,11 +131,14 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         // Reserve the owner before publishing Playing; callbacks may request Stop.
         lock (_syncRoot)
         {
+            ObjectDisposedException.ThrowIf(_shutdownRequested, this);
             if (_playbackCancellationTokenSource is not null)
             {
                 return;
             }
 
+            _playbackCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _heldInputs = new HeldInputTracker();
             playbackCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _playbackCancellationTokenSource = playbackCancellationTokenSource;
             _stopRequested = false;
@@ -280,6 +333,16 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                 }
             }
 
+            await _eventExecutionGate.WaitAsync(CancellationToken.None);
+            try
+            {
+                if (_heldInputs is not null) { await ReleaseHeldInputsAsync(_heldInputs); }
+            }
+            finally
+            {
+                _eventExecutionGate.Release();
+            }
+
             lock (_syncRoot)
             {
                 _activeCoordinateResolver = null;
@@ -306,14 +369,19 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         finally
         {
             // Keep the slot through final notifications so reentrant Play cannot be reset by this owner.
+            TaskCompletionSource? completed;
             lock (_syncRoot)
             {
+                completed = _playbackCompletion;
+                _playbackCompletion = null;
+                _heldInputs = null;
                 _playbackCancellationTokenSource = null;
                 _stopFlight = null;
                 _stopRequested = false;
                 _playbackCompleting = false;
             }
             owner.Dispose();
+            completed?.TrySetResult();
         }
     }
 
@@ -480,14 +548,21 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         int? logicalEventIndex,
         CancellationToken cancellationToken)
     {
+        using var operation = BeginManualOperation();
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_applicationStateService.IsAny(AppState.Idle, AppState.Paused))
+        CancellationTokenSource? navigationOwner;
+        lock (_syncRoot)
         {
-            throw new InvalidOperationException(
-                "Tek olay oynatma yalnizca uygulama bostayken veya duraklatilmisken kullanilabilir.");
+            navigationOwner = _playbackCancellationTokenSource;
+            if (_playbackCompleting || !_applicationStateService.IsAny(AppState.Idle, AppState.Paused)
+                || (navigationOwner is not null && !_applicationStateService.IsState(AppState.Paused)))
+            {
+                throw new InvalidOperationException(
+                    "Tek olay oynatma yalnizca uygulama bostayken veya duraklatilmisken kullanilabilir.");
+            }
         }
 
         if (eventIndex < 0 || eventIndex >= session.Events.Count)
@@ -537,9 +612,33 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
 
             try
             {
-                if (!effectiveSettings.SimulationMode)
+                HeldInputTracker tracker;
+                bool standalone;
+                lock (_syncRoot)
                 {
-                    await _inputPlaybackAdapter.PlayEventAsync(playbackEvent, cancellationToken);
+                    ObjectDisposedException.ThrowIf(_shutdownRequested, this);
+                    if (_playbackCompleting || _stopRequested || _playbackCancellationTokenSource != navigationOwner
+                        || !_applicationStateService.IsAny(AppState.Idle, AppState.Paused))
+                    {
+                        throw new InvalidOperationException("Oynatma tamamlanırken tek olay gönderilemez.");
+                    }
+                    standalone = _playbackCancellationTokenSource is null;
+                    if (!standalone && !_applicationStateService.IsState(AppState.Paused))
+                    {
+                        throw new InvalidOperationException("Etkin oynatmada tek olay yalnız duraklatılmışken gönderilebilir.");
+                    }
+                    tracker = standalone ? new HeldInputTracker() : _heldInputs!;
+                }
+                try
+                {
+                    if (!effectiveSettings.SimulationMode)
+                    {
+                        await SendTrackedEventAsync(playbackEvent, tracker, cancellationToken);
+                    }
+                }
+                finally
+                {
+                    if (standalone) { await ReleaseHeldInputsAsync(tracker); }
                 }
             }
             finally
@@ -597,6 +696,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
 
     public async Task WaitForPlaybackNavigationReadyAsync(CancellationToken cancellationToken = default)
     {
+        using var operation = BeginManualOperation();
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!_applicationStateService.IsState(AppState.Paused))
@@ -620,6 +720,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         int logicalEventIndex,
         CancellationToken cancellationToken = default)
     {
+        using var operation = BeginManualOperation();
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!_applicationStateService.IsState(AppState.Paused))
@@ -678,7 +779,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         {
             if (!effectiveSettings.SimulationMode)
             {
-                await _inputPlaybackAdapter.PlayEventAsync(playbackEvent, cancellationToken);
+                await SendTrackedEventAsync(playbackEvent, _heldInputs!, cancellationToken);
             }
 
             SafeInvokeEventPlayed(playbackEvent);
@@ -686,6 +787,81 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         finally
         {
             _eventExecutionGate.Release();
+        }
+    }
+
+    private async Task SendTrackedEventAsync(MacroEvent input, HeldInputTracker tracker, CancellationToken cancellationToken)
+    {
+        if (input.EventType == MacroEventType.Mouse && input.MouseActionType == MouseActionType.DoubleClick)
+        {
+            // Observe each successful sub-send even if a later double-click send fails.
+            await SendMousePartAsync(MouseActionType.LeftDown);
+            await SendMousePartAsync(MouseActionType.LeftUp);
+            await SendMousePartAsync(MouseActionType.LeftDown);
+            await SendMousePartAsync(MouseActionType.LeftUp);
+            return;
+        }
+        await _inputPlaybackAdapter.PlayEventAsync(input, cancellationToken);
+        tracker.RecordSuccessfulSend(input);
+
+        async Task SendMousePartAsync(MouseActionType action)
+        {
+            var part = new MacroEvent
+            {
+                EventType = MacroEventType.Mouse,
+                MouseActionType = action,
+                X = input.X,
+                Y = input.Y,
+                TimestampUtc = input.TimestampUtc
+            };
+            await _inputPlaybackAdapter.PlayEventAsync(part, cancellationToken);
+            tracker.RecordSuccessfulSend(part);
+        }
+    }
+
+    private async Task ReleaseHeldInputsAsync(HeldInputTracker tracker)
+    {
+        foreach (MacroEvent release in tracker.TakeReleases())
+        {
+            try
+            {
+                await _inputPlaybackAdapter.ReleaseEventAsync(release, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                try
+                {
+                    _logger.Log(AppLogLevel.Error, nameof(MacroPlaybackService), "Oynatmanın basılı girdisi bırakılamadı.", exception);
+                }
+                catch (Exception)
+                {
+                    // A logging failure must not prevent the remaining releases.
+                }
+            }
+        }
+    }
+
+    private IDisposable BeginManualOperation()
+    {
+        lock (_syncRoot)
+        {
+            ObjectDisposedException.ThrowIf(_shutdownRequested, this);
+            if (_manualOperationCount++ == 0)
+            {
+                _manualOperationsDrained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+            return new ManualOperation(this);
+        }
+    }
+
+    private sealed class ManualOperation(MacroPlaybackService owner) : IDisposable
+    {
+        public void Dispose()
+        {
+            lock (owner._syncRoot)
+            {
+                if (--owner._manualOperationCount == 0) { owner._manualOperationsDrained!.TrySetResult(); }
+            }
         }
     }
 

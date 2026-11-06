@@ -55,11 +55,21 @@ public sealed class MacroPlaybackServiceTests
             new PlaybackSettings { UseRelativeCoordinates = true });
 
         Assert.Equal(1, inputPlaybackAdapter.CursorPositionReadCount);
-        Assert.Equal(2, inputPlaybackAdapter.PlayedEvents.Count);
+        Assert.Equal(3, inputPlaybackAdapter.PlayedEvents.Count);
+        Assert.Equal(session.Events[0].Id, inputPlaybackAdapter.PlayedEvents[0].Id);
+        Assert.Equal(MouseActionType.Move, inputPlaybackAdapter.PlayedEvents[0].MouseActionType);
         Assert.Equal(500, inputPlaybackAdapter.PlayedEvents[0].X);
         Assert.Equal(300, inputPlaybackAdapter.PlayedEvents[0].Y);
+        Assert.Equal(session.Events[1].Id, inputPlaybackAdapter.PlayedEvents[1].Id);
+        Assert.Equal(MouseActionType.LeftDown, inputPlaybackAdapter.PlayedEvents[1].MouseActionType);
         Assert.Equal(530, inputPlaybackAdapter.PlayedEvents[1].X);
         Assert.Equal(340, inputPlaybackAdapter.PlayedEvents[1].Y);
+        MacroEvent release = inputPlaybackAdapter.PlayedEvents[2];
+        Assert.Equal(MacroEventType.Mouse, release.EventType);
+        Assert.Equal(MouseActionType.LeftUp, release.MouseActionType);
+        Assert.Equal(KeyboardActionType.None, release.KeyboardActionType);
+        Assert.Equal(530, release.X);
+        Assert.Equal(340, release.Y);
     }
 
     [Fact(DisplayName = "MacroPlaybackService re-anchors relative mouse playback for each repeat iteration")]
@@ -147,10 +157,19 @@ public sealed class MacroPlaybackServiceTests
             new PlaybackSettings { UseRelativeCoordinates = true });
 
         Assert.Equal(0, inputPlaybackAdapter.CursorPositionReadCount);
-        Assert.Single(inputPlaybackAdapter.PlayedEvents);
-        Assert.Equal(MacroEventType.Keyboard, inputPlaybackAdapter.PlayedEvents[0].EventType);
-        Assert.False(inputPlaybackAdapter.PlayedEvents[0].X.HasValue, "Keyboard events should not receive synthetic X coordinates.");
-        Assert.False(inputPlaybackAdapter.PlayedEvents[0].Y.HasValue, "Keyboard events should not receive synthetic Y coordinates.");
+        Assert.Collection(inputPlaybackAdapter.PlayedEvents,
+            down =>
+            {
+                Assert.Equal(session.Events[0].Id, down.Id);
+                Assert.Equal(MacroEventType.Keyboard, down.EventType);
+                Assert.Equal(KeyboardActionType.KeyDown, down.KeyboardActionType);
+                Assert.Equal(0x41, down.KeyCode);
+                Assert.Equal(0x1E, down.ScanCode);
+                Assert.False(down.IsExtendedKey);
+                Assert.False(down.X.HasValue, "Keyboard events should not receive synthetic X coordinates.");
+                Assert.False(down.Y.HasValue, "Keyboard events should not receive synthetic Y coordinates.");
+            },
+            release => AssertMatchingKeyboardRelease(session.Events[0], release));
     }
 
     [Fact(DisplayName = "MacroPlaybackService keeps the active relative anchor for paused single-step playback")]
@@ -530,15 +549,12 @@ public sealed class MacroPlaybackServiceTests
         await playbackService.ResumeAsync();
         await playTask.WaitAsync(TimeSpan.FromSeconds(2));
 
-        Assert.Equal(
-            new[]
-            {
-                session.Events[0].Id,
-                session.Events[0].Id,
-                session.Events[1].Id,
-                session.Events[2].Id
-            },
-            inputPlaybackAdapter.PlayedEvents.Select(macroEvent => macroEvent.Id).ToArray());
+        Assert.Collection(inputPlaybackAdapter.PlayedEvents,
+            first => Assert.Equal(session.Events[0].Id, first.Id),
+            replayed => Assert.Equal(session.Events[0].Id, replayed.Id),
+            second => Assert.Equal(session.Events[1].Id, second.Id),
+            third => Assert.Equal(session.Events[2].Id, third.Id),
+            release => AssertMatchingKeyboardRelease(session.Events[2], release));
         Assert.Equal(AppState.Idle, applicationStateService.CurrentState);
     }
 
@@ -574,14 +590,11 @@ public sealed class MacroPlaybackServiceTests
         await playbackService.ResumeAsync();
         await playTask.WaitAsync(TimeSpan.FromSeconds(2));
 
-        Assert.Equal(
-            new[]
-            {
-                session.Events[0].Id,
-                session.Events[1].Id,
-                session.Events[2].Id
-            },
-            inputPlaybackAdapter.PlayedEvents.Select(macroEvent => macroEvent.Id).ToArray());
+        Assert.Collection(inputPlaybackAdapter.PlayedEvents,
+            first => Assert.Equal(session.Events[0].Id, first.Id),
+            second => Assert.Equal(session.Events[1].Id, second.Id),
+            third => Assert.Equal(session.Events[2].Id, third.Id),
+            release => AssertMatchingKeyboardRelease(session.Events[2], release));
         Assert.Equal(AppState.Idle, applicationStateService.CurrentState);
     }
 
@@ -634,14 +647,11 @@ public sealed class MacroPlaybackServiceTests
         timeProvider.Advance(scheduledDelay);
         await playTask.WaitAsync(TimeSpan.FromSeconds(2));
 
-        Assert.Equal(
-            new[]
-            {
-                session.Events[0].Id,
-                session.Events[1].Id,
-                session.Events[2].Id
-            },
-            inputPlaybackAdapter.PlayedEvents.Select(macroEvent => macroEvent.Id).ToArray());
+        Assert.Collection(inputPlaybackAdapter.PlayedEvents,
+            first => Assert.Equal(session.Events[0].Id, first.Id),
+            second => Assert.Equal(session.Events[1].Id, second.Id),
+            third => Assert.Equal(session.Events[2].Id, third.Id),
+            release => AssertMatchingKeyboardRelease(session.Events[2], release));
     }
 
     [Fact(DisplayName = "MacroPlaybackService stops immediately on playback errors when StopOnError is enabled")]
@@ -689,5 +699,17 @@ public sealed class MacroPlaybackServiceTests
             new[] { AppState.Playing, AppState.Error, AppState.Idle },
             observedStates);
         Assert.Equal(AppState.Idle, applicationStateService.CurrentState);
+    }
+    private static void AssertMatchingKeyboardRelease(MacroEvent down, MacroEvent release)
+    {
+        Assert.Equal(MacroEventType.Keyboard, release.EventType);
+        Assert.Equal(KeyboardActionType.KeyUp, release.KeyboardActionType);
+        Assert.Equal(MouseActionType.None, release.MouseActionType);
+        Assert.Equal(down.KeyCode, release.KeyCode);
+        Assert.Equal(down.ScanCode, release.ScanCode);
+        Assert.Equal(down.IsExtendedKey, release.IsExtendedKey);
+        Assert.Equal(down.X, release.X);
+        Assert.Equal(down.Y, release.Y);
+        Assert.Equal(0, release.DelayMs);
     }
 }

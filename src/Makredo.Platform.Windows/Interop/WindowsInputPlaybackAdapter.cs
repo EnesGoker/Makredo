@@ -64,6 +64,45 @@ public sealed class WindowsInputPlaybackAdapter : IInputPlaybackAdapter, ICursor
         };
     }
 
+    public Task ReleaseEventAsync(MacroEvent releaseEvent, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(releaseEvent);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!OperatingSystem.IsWindows())
+        {
+            PlatformNotSupportedException exception = new(
+                "WindowsInputPlaybackAdapter yalnizca Windows ortaminda calisir.");
+            _logger.Log(
+                AppLogLevel.Error,
+                nameof(WindowsInputPlaybackAdapter),
+                "Basılı girdi Windows dışındaki bir ortamda bırakılamadı.",
+                exception);
+            throw exception;
+        }
+
+        if (releaseEvent.EventType == MacroEventType.Keyboard
+            && releaseEvent.KeyboardActionType == KeyboardActionType.KeyUp)
+        {
+            return PlayKeyboardEventAsync(releaseEvent, cancellationToken);
+        }
+
+        if (releaseEvent.EventType != MacroEventType.Mouse)
+        {
+            throw new ArgumentException("Yalnızca tuş veya fare düğmesi bırakma olayı gönderilebilir.", nameof(releaseEvent));
+        }
+
+        uint flags = releaseEvent.MouseActionType switch
+        {
+            MouseActionType.LeftUp => NativeMethods.MouseEventFLeftUp,
+            MouseActionType.RightUp => NativeMethods.MouseEventFRightUp,
+            MouseActionType.MiddleUp => NativeMethods.MouseEventFMiddleUp,
+            _ => throw new ArgumentException("Yalnızca tuş veya fare düğmesi bırakma olayı gönderilebilir.", nameof(releaseEvent))
+        };
+        SendMouseInput(flags);
+        return Task.CompletedTask;
+    }
+
     private void ThrowWin32Exception(string message)
     {
         int errorCode = Marshal.GetLastWin32Error();

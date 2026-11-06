@@ -20,6 +20,10 @@
 
 ### Düzeltilenler
 
+- Oynatma durdurulduğunda, iptal edildiğinde, hata verdiğinde veya normal
+  tamamlandığında kendi bastığı tuşları ve fare düğmelerini ters sırayla bırakır.
+  Pencere kapanışı bu temizliğin bitmesini bekler; simülasyon gerçek girdi göndermez.
+
 - Eşzamanlı kayıt başlatma ve durdurma çağrıları oturumu yeniden oluşturmaz,
   olay aboneliklerini yinelemez veya kaydedilmiş olayları silmez.
 - İkinci oynatma isteği etkin oynatmanın durumunu sıfırlamaz. Durum değişikliği
@@ -42,6 +46,10 @@
   active leased attempts and fresh directories are preserved.
 
 ### Fixed
+
+- Playback releases its own held keys and mouse buttons in reverse order on stop,
+  cancellation, error or normal completion. Window shutdown waits for cleanup;
+  simulation sends no real input.
 
 - Overlapping recording start and stop calls no longer replace the session,
   duplicate event subscriptions, or discard recorded events.
