@@ -242,7 +242,9 @@ public partial class ToolbarControl : UserControl
     {
         button.Text = string.IsNullOrWhiteSpace(hotkey)
             ? label
-            : $"{label} ({hotkey})";
+            : hotkey.Contains('+', StringComparison.Ordinal)
+                ? $"{label}\n({hotkey})"
+                : $"{label} ({hotkey})";
     }
 
     private sealed class ToolbarButton : Button

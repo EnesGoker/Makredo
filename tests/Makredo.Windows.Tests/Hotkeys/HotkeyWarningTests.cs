@@ -57,6 +57,24 @@ public sealed class HotkeyWarningTests
         finally { Directory.Delete(directory, recursive: true); }
     });
 
+    [HostedWindowsInputFact]
+    public Task DefaultToolbarKeepsFullChordHintsVisible() => HookThreadIntegrationTests.RunOnStaAsync(() =>
+    {
+        HostedWindowsInputFactAttribute.RequireHostedWindowsCi();
+        using var form = new Form { ClientSize = new Size(940, 80) };
+        using var toolbar = new ToolbarControl { Dock = DockStyle.Fill };
+        form.Controls.Add(toolbar);
+        toolbar.SetHotkeyHints("Ctrl+Shift+Alt+R", "Ctrl+Shift+Alt+P", "Ctrl+Shift+Alt+P", null);
+        form.Show(); form.PerformLayout();
+        Button record = Assert.Single(Descendants(toolbar).OfType<Button>(), button => button.Text.StartsWith("Kaydı Başlat", StringComparison.Ordinal));
+        Assert.Equal("Kaydı Başlat\n(Ctrl+Shift+Alt+R)", record.Text);
+        Size measured = TextRenderer.MeasureText(record.Text, record.Font);
+        Assert.True(measured.Width <= record.Width - 8, $"Hint width {measured.Width} exceeds button {record.Width}.");
+        Assert.True(measured.Height <= record.Height - 8, $"Hint height {measured.Height} exceeds button {record.Height}.");
+        SaveScreenshot(form, "hotkey-default-toolbar.png");
+        return Task.CompletedTask;
+    });
+
     private static IEnumerable<Control> Descendants(Control parent) => parent.Controls.Cast<Control>().SelectMany(control => Descendants(control).Prepend(control));
     private static void SaveScreenshot(Form form, string name)
     {

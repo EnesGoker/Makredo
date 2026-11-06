@@ -187,7 +187,7 @@ public sealed class HotkeySettingsDialog : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 3,
-            RowCount = 4,
+            RowCount = 5,
             Margin = Padding.Empty,
             Padding = Padding.Empty,
             BackColor = DesignTokens.SurfaceInset,
@@ -217,6 +217,7 @@ public sealed class HotkeySettingsDialog : Form
             "Durdur",
             _stopModifierSelect,
             _stopKeyInput);
+        settingsTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         return settingsTableLayoutPanel;
     }
 
