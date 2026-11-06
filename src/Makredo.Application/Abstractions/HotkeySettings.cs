@@ -2,9 +2,9 @@ namespace Makredo.Application.Abstractions;
 
 public sealed class HotkeySettings
 {
-    public static HotkeyBinding DefaultRecordToggleHotkey { get; } = HotkeyBinding.None(0x77);     // F8
-    public static HotkeyBinding DefaultPlaybackToggleHotkey { get; } = HotkeyBinding.None(0x78);   // F9
-    public static HotkeyBinding DefaultStopHotkey { get; } = HotkeyBinding.None(0x79);             // F10
+    public static HotkeyBinding DefaultRecordToggleHotkey { get; } = new(0x52, HotkeyModifiers.Control | HotkeyModifiers.Shift | HotkeyModifiers.Alt);
+    public static HotkeyBinding DefaultPlaybackToggleHotkey { get; } = new(0x50, HotkeyModifiers.Control | HotkeyModifiers.Shift | HotkeyModifiers.Alt);
+    public static HotkeyBinding DefaultStopHotkey { get; } = DefaultPlaybackToggleHotkey;
     public static HotkeyBinding DefaultHotkeySettingsHotkey { get; } = HotkeyBinding.None(0x7B);   // F12
 
     public HotkeyBinding RecordToggleHotkey { get; set; } = DefaultRecordToggleHotkey;

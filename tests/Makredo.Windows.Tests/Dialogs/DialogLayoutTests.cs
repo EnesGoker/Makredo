@@ -33,13 +33,13 @@ public sealed class DialogLayoutTests
                 $"Hotkey settings dialog should allocate enough height to show all settings rows. Actual client size: {dialog.ClientSize.Width}x{dialog.ClientSize.Height}.");
 
             List<ModernSelect> modifierSelects = GetDescendants<ModernSelect>(dialog).ToList();
-            Assert.Equal(4, modifierSelects.Count);
+            Assert.Equal(3, modifierSelects.Count);
 
             List<HotkeyKeyInput> keyInputs = GetDescendants<HotkeyKeyInput>(dialog).ToList();
-            Assert.Equal(4, keyInputs.Count);
+            Assert.Equal(3, keyInputs.Count);
 
             List<ThemedDialogButton> buttons = GetDescendants<ThemedDialogButton>(dialog).ToList();
-            Assert.Equal(3, buttons.Count);
+            Assert.Equal(4, buttons.Count);
 
             foreach (Control control in modifierSelects
                 .Cast<Control>()

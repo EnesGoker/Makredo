@@ -49,8 +49,7 @@ public static class HotkeySettingsValidator
             context,
             ("Kaydi baslat/durdur kisayolu", settings.RecordToggleHotkey),
             ("Oynat/duraklat kisayolu", settings.PlaybackToggleHotkey),
-            ("Durdurma kisayolu", settings.StopHotkey),
-            ("Kisayollari ac kisayolu", settings.HotkeySettingsHotkey));
+            ("Durdurma kisayolu", settings.StopHotkey));
     }
 
     private static void ValidateBinding(
@@ -95,6 +94,7 @@ public static class HotkeySettingsValidator
         {
             for (int secondIndex = firstIndex + 1; secondIndex < bindings.Length; secondIndex++)
             {
+                if (firstIndex == 1 && secondIndex == 2) { continue; }
                 if (bindings[firstIndex].Binding == bindings[secondIndex].Binding)
                 {
                     throw CreateValidationException(

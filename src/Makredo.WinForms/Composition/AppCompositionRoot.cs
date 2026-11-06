@@ -100,7 +100,7 @@ internal sealed class AppCompositionRoot : IDisposable
         IPlaybackSettingsStore playbackSettingsStore =
             new JsonPlaybackSettingsStore(storagePaths.PlaybackSettingsFilePath);
         IHotkeySettingsStore hotkeySettingsStore =
-            new JsonHotkeySettingsStore(storagePaths.HotkeySettingsFilePath);
+            new JsonHotkeySettingsStore(storagePaths.HotkeySettingsFilePath, resolvedLogger);
         IMacroLibraryUserStateStore macroLibraryUserStateStore =
             new JsonMacroLibraryUserStateStore(storagePaths.MacroLibraryStateFilePath);
 

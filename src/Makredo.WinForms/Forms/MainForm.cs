@@ -6,6 +6,7 @@ using Makredo.Application.Reporting;
 using Makredo.Domain;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
+using Makredo.Platform.Windows.Hotkeys;
 using Makredo.WinForms.Controls;
 using Makredo.WinForms.Platform;
 using Makredo.WinForms.Theme;
@@ -47,6 +48,7 @@ public partial class MainForm : Form
     private int? _activePlaybackSourceIndex;
     private int _playbackNavigationInProgress;
     private bool _applyingPlaybackSettings;
+    private readonly HotkeyWarningBand _hotkeyWarningBand = new();
     private bool _shutdownInProgress;
     private bool _shutdownCompleted;
     private UiRefreshThrottle? _recordingEventRefreshThrottle;
@@ -92,6 +94,7 @@ public partial class MainForm : Form
         ShowInTaskbar = true;
 
         InitializeDynamicControls();
+        Controls.Add(_hotkeyWarningBand);
 
         Load += MainForm_Load;
         FormClosing += MainForm_FormClosing;
@@ -192,11 +195,11 @@ public partial class MainForm : Form
         _hotkeyService.RecordToggleRequested += OnRecordToggleRequested;
         _hotkeyService.PlaybackToggleRequested += OnPlaybackToggleRequested;
         _hotkeyService.StopRequested += OnStopRequested;
-        _hotkeyService.HotkeySettingsRequested += OnHotkeySettingsRequested;
 
         try
         {
             await _hotkeyService.RegisterAsync();
+            _hotkeyWarningBand.ShowFailures(_hotkeyService.RegistrationFailures);
         }
         catch (Exception ex)
         {
@@ -210,10 +213,12 @@ public partial class MainForm : Form
 
     private void OnRecordToggleRequested()
     {
-        _ = ExecuteUiActionAsync(HandleRecordToggleAsync, "Kaydı başlat/durdur");
+        _ = ExecuteUiActionAsync(() => HandleRecordToggleCoreAsync(true), "Kaydı başlat/durdur");
     }
 
-    private async Task HandleRecordToggleAsync()
+    private Task HandleRecordToggleAsync() => HandleRecordToggleCoreAsync(false);
+
+    private async Task HandleRecordToggleCoreAsync(bool fromHotkey)
     {
         if (_shutdownInProgress || _macroPlaybackService.IsPlaying || _macroPlaybackService.IsPaused)
         {
@@ -227,13 +232,17 @@ public partial class MainForm : Form
         }
 
         _lastSessionPath = null;
-        await _macroRecorderService.StartAsync();
+        await _macroRecorderService.StartAsync(null, fromHotkey ? WindowsHotkeyService.CapturePressedKeys(_hotkeyConfiguration.RecordToggleHotkey) : null);
         RefreshUiState();
     }
 
     private void OnPlaybackToggleRequested()
     {
-        _ = ExecuteUiActionAsync(HandlePlaybackToggleAsync, "Oynat/duraklat");
+        _ = ExecuteUiActionAsync(async () =>
+        {
+            if (_macroRecorderService.IsRecording || _macroPlaybackService.IsPlaying || _macroPlaybackService.IsPaused) { await HandleStopAsync(); }
+            else { await HandlePlaybackToggleAsync(); }
+        }, "Oynat/durdur");
     }
 
     private async Task HandlePlaybackToggleAsync()
@@ -266,14 +275,9 @@ public partial class MainForm : Form
         _ = ExecuteUiActionAsync(HandleStopAsync, "Durdurma isteği");
     }
 
-    private void OnHotkeySettingsRequested()
-    {
-        _ = ExecuteUiActionAsync(EditHotkeysAsync, "Kısayolları aç");
-    }
-
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
-        if (TryHandleLocalHotkeyFallback(keyData))
+        if (TryHandleLocalHotkeyFallback(keyData, (msg.LParam.ToInt64() & (1L << 30)) != 0))
         {
             return true;
         }
@@ -294,33 +298,26 @@ public partial class MainForm : Form
         }
     }
 
-    private bool TryHandleLocalHotkeyFallback(Keys keyData)
+    private bool TryHandleLocalHotkeyFallback(Keys keyData, bool repeated)
     {
         if (ShouldUseLocalHotkeyFallback(_hotkeyConfiguration.RecordToggleHotkey)
             && MatchesHotkey(keyData, _hotkeyConfiguration.RecordToggleHotkey))
         {
-            OnRecordToggleRequested();
+            if (!repeated) { OnRecordToggleRequested(); }
             return true;
         }
 
         if (ShouldUseLocalHotkeyFallback(_hotkeyConfiguration.PlaybackToggleHotkey)
             && MatchesHotkey(keyData, _hotkeyConfiguration.PlaybackToggleHotkey))
         {
-            OnPlaybackToggleRequested();
+            if (!repeated) { OnPlaybackToggleRequested(); }
             return true;
         }
 
         if (ShouldUseLocalHotkeyFallback(_hotkeyConfiguration.StopHotkey)
             && MatchesHotkey(keyData, _hotkeyConfiguration.StopHotkey))
         {
-            OnStopRequested();
-            return true;
-        }
-
-        if (ShouldUseLocalHotkeyFallback(_hotkeyConfiguration.HotkeySettingsHotkey)
-            && MatchesHotkey(keyData, _hotkeyConfiguration.HotkeySettingsHotkey))
-        {
-            OnHotkeySettingsRequested();
+            if (!repeated) { OnStopRequested(); }
             return true;
         }
 
@@ -495,7 +492,6 @@ public partial class MainForm : Form
         _hotkeyService.RecordToggleRequested -= OnRecordToggleRequested;
         _hotkeyService.PlaybackToggleRequested -= OnPlaybackToggleRequested;
         _hotkeyService.StopRequested -= OnStopRequested;
-        _hotkeyService.HotkeySettingsRequested -= OnHotkeySettingsRequested;
         UnsubscribeFromServiceEvents();
         await _macroPlaybackService.StopAsync();
 
@@ -675,14 +671,14 @@ public partial class MainForm : Form
     {
         _ = sender;
         _ = e;
-        OnRecordToggleRequested();
+        _ = ExecuteUiActionAsync(HandleRecordToggleAsync, "Kaydı başlat/durdur");
     }
 
     private void playbackToggleButton_Click(object? sender, EventArgs e)
     {
         _ = sender;
         _ = e;
-        OnPlaybackToggleRequested();
+        _ = ExecuteUiActionAsync(HandlePlaybackToggleAsync, "Oynat/duraklat");
     }
 
     private void stopButton_Click(object? sender, EventArgs e)
@@ -2197,6 +2193,7 @@ public partial class MainForm : Form
             if (shouldRefreshGlobalRegistration)
             {
                 await _hotkeyService.RegisterAsync();
+                _hotkeyWarningBand.ShowFailures(_hotkeyService.RegistrationFailures);
             }
 
             await _hotkeySettingsStore.SaveAsync(_hotkeyConfiguration.Snapshot());
@@ -2237,6 +2234,7 @@ public partial class MainForm : Form
                 try
                 {
                     await _hotkeyService.RegisterAsync();
+                    _hotkeyWarningBand.ShowFailures(_hotkeyService.RegistrationFailures);
                 }
                 catch (Exception restoreRegistrationException)
                 {
@@ -2285,6 +2283,7 @@ public partial class MainForm : Form
         }
 
         await _hotkeyService.RegisterAsync();
+        _hotkeyWarningBand.ShowFailures(_hotkeyService.RegistrationFailures);
     }
 
     private void UpdateHotkeySummary()
@@ -2292,7 +2291,7 @@ public partial class MainForm : Form
         string recordHotkey = FormatHotkey(_hotkeyConfiguration.RecordToggleHotkey);
         string playbackHotkey = FormatHotkey(_hotkeyConfiguration.PlaybackToggleHotkey);
         string stopHotkey = FormatHotkey(_hotkeyConfiguration.StopHotkey);
-        string hotkeySettingsHotkey = FormatHotkey(_hotkeyConfiguration.HotkeySettingsHotkey);
+        string? hotkeySettingsHotkey = null;
 
         _toolbarControl.SetHotkeyHints(
             recordHotkey,

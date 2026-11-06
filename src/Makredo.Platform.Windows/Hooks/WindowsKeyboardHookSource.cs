@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Makredo.Application.Abstractions;
 using Makredo.Application.Services;
 using Makredo.Platform.Windows.Interop;
@@ -22,6 +23,7 @@ public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable
     private readonly WindowsHookThread _owner;
     private readonly IAppLogger _logger;
     private HotkeyModifiers _activeModifiers;
+    private readonly HashSet<int> _heldModifiers = [];
     private int _disposed;
 
     public WindowsKeyboardHookSource(IAppLogger? logger = null)
@@ -50,7 +52,12 @@ public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable
     {
         if (sample.Message == 0)
         {
-            _activeModifiers = HotkeyModifiers.None;
+            _heldModifiers.Clear();
+            foreach (int key in new[] { 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0x5B, 0x5C })
+            {
+                if ((GetAsyncKeyState(key) & 0x8000) != 0) { _heldModifiers.Add(key); }
+            }
+            RefreshModifiers();
             return;
         }
         if (sample.Message is not (NativeMethods.WmKeyDown or NativeMethods.WmKeyUp
@@ -60,7 +67,9 @@ public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable
         bool modifierKey = TryMapModifier(code, out HotkeyModifiers modifier);
         if (modifier != HotkeyModifiers.None && sample.ExtraInfo != InputOriginPolicy.PlaybackSignature)
         {
-            _activeModifiers = down ? _activeModifiers | modifier : _activeModifiers & ~modifier;
+            if (down) { _heldModifiers.Add(code); }
+            else { _heldModifiers.Remove(code); }
+            RefreshModifiers();
         }
         var activity = new KeyboardActivityInfo(code, unchecked((int)sample.ScanCode), down,
             (sample.Flags & NativeMethods.KbdLlHookFlagExtended) != 0,
@@ -75,6 +84,19 @@ public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable
             }
         }
     }
+
+    private void RefreshModifiers()
+    {
+        _activeModifiers = HotkeyModifiers.None;
+        foreach (int key in _heldModifiers)
+        {
+            TryMapModifier(key, out HotkeyModifiers modifier);
+            _activeModifiers |= modifier;
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int virtualKeyCode);
 
     private static bool TryMapModifier(int virtualKeyCode, out HotkeyModifiers modifier)
     {
