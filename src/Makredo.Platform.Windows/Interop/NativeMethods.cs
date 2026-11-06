@@ -76,6 +76,32 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     internal static extern IntPtr GetModuleHandle(string? lpModuleName);
 
+    [DllImport("user32.dll", EntryPoint = "GetMessageW", SetLastError = true)]
+    internal static extern int GetMessage(out MSG message, IntPtr window, uint minimum, uint maximum);
+
+    [DllImport("user32.dll", EntryPoint = "PeekMessageW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PeekMessage(out MSG message, IntPtr window, uint minimum, uint maximum, uint remove);
+
+    [DllImport("user32.dll", EntryPoint = "PostThreadMessageW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PostThreadMessage(uint threadId, uint message, UIntPtr wParam, IntPtr lParam);
+
+    [DllImport("kernel32.dll")]
+    internal static extern uint GetCurrentThreadId();
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MSG
+    {
+        public IntPtr window;
+        public uint message;
+        public UIntPtr wParam;
+        public IntPtr lParam;
+        public uint time;
+        public POINT point;
+        public uint lPrivate;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     internal struct INPUT
     {

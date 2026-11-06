@@ -1,13 +1,10 @@
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Makredo.Application.Abstractions;
 using Makredo.Application.Services;
 using Makredo.Platform.Windows.Interop;
 
 namespace Makredo.Platform.Windows.Hooks;
 
-public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable
+public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable, IAsyncDisposable
 {
     private const int VirtualKeyShift = 0x10;
     private const int VirtualKeyControl = 0x11;
@@ -21,200 +18,61 @@ public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable
     private const int VirtualKeyLeftWindows = 0x5B;
     private const int VirtualKeyRightWindows = 0x5C;
 
-    private readonly object _syncRoot = new();
-    private readonly IAppLogger _logger;
 
-    private NativeMethods.HookProc? _hookProc;
-    private IntPtr _hookHandle = IntPtr.Zero;
+    private readonly WindowsHookThread _owner;
+    private readonly IAppLogger _logger;
     private HotkeyModifiers _activeModifiers;
-    private bool _disposed;
+    private int _disposed;
 
     public WindowsKeyboardHookSource(IAppLogger? logger = null)
+        : this(new WindowsHookThread(logger ?? NullAppLogger.Instance), logger ?? NullAppLogger.Instance) { }
+
+    internal WindowsKeyboardHookSource(WindowsHookThread owner, IAppLogger logger)
     {
-        _logger = logger ?? NullAppLogger.Instance;
+        _owner = owner;
+        _logger = logger;
+        _owner.KeyboardReceived += ProcessSample;
     }
 
-    public bool IsRunning => _hookHandle != IntPtr.Zero;
-
+    public bool IsRunning => _owner.IsRunning(HookKind.Keyboard);
     public event Action<KeyboardActivityInfo>? KeyActivityReceived;
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        ThrowIfDisposed();
-
-        if (!OperatingSystem.IsWindows())
-        {
-            PlatformNotSupportedException exception = new(
-                "WindowsKeyboardHookSource yalnizca Windows ortaminda calisir.");
-            _logger.Log(
-                AppLogLevel.Error,
-                nameof(WindowsKeyboardHookSource),
-                "Klavye kancasi Windows disindaki bir ortamda baslatilamadi.",
-                exception);
-            throw exception;
-        }
-
-        lock (_syncRoot)
-        {
-            if (IsRunning)
-            {
-                return Task.CompletedTask;
-            }
-
-            _activeModifiers = HotkeyModifiers.None;
-            _hookProc = HookCallback;
-            _hookHandle = InstallHook(_hookProc);
-        }
-
-        _logger.Log(
-            AppLogLevel.Information,
-            nameof(WindowsKeyboardHookSource),
-            "Klavye kancasi baslatildi.");
-        return Task.CompletedTask;
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        return _owner.StartAsync(HookKind.Keyboard, cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        StopCore();
-        return Task.CompletedTask;
-    }
+        => _owner.StopAsync(HookKind.Keyboard, cancellationToken);
 
-    private void StopCore()
+    internal void ProcessSample(HookSample sample)
     {
-        bool wasRunning;
-
-        lock (_syncRoot)
+        if (sample.Message == 0)
         {
-            wasRunning = IsRunning;
-
-            if (!wasRunning)
-            {
-                return;
-            }
-
-            if (!NativeMethods.UnhookWindowsHookEx(_hookHandle))
-            {
-                ThrowWin32Exception("Klavye kancasi kaldirilamadi.");
-            }
-
-            _hookHandle = IntPtr.Zero;
-            _hookProc = null;
             _activeModifiers = HotkeyModifiers.None;
+            return;
         }
-
-        _logger.Log(
-            AppLogLevel.Information,
-            nameof(WindowsKeyboardHookSource),
-            "Klavye kancasi durduruldu.");
-    }
-
-    private static IntPtr InstallHook(NativeMethods.HookProc hookProc)
-    {
-        using Process currentProcess = Process.GetCurrentProcess();
-        ProcessModule? mainModule = currentProcess.MainModule;
-
-        IntPtr moduleHandle = IntPtr.Zero;
-
-        if (mainModule is not null)
+        if (sample.Message is not (NativeMethods.WmKeyDown or NativeMethods.WmKeyUp
+            or NativeMethods.WmSysKeyDown or NativeMethods.WmSysKeyUp)) { return; }
+        bool down = sample.Message is NativeMethods.WmKeyDown or NativeMethods.WmSysKeyDown;
+        int code = unchecked((int)sample.Code);
+        bool modifierKey = TryMapModifier(code, out HotkeyModifiers modifier);
+        if (modifier != HotkeyModifiers.None)
         {
-            moduleHandle = NativeMethods.GetModuleHandle(mainModule.ModuleName);
+            _activeModifiers = down ? _activeModifiers | modifier : _activeModifiers & ~modifier;
         }
-
-        IntPtr hookHandle = NativeMethods.SetWindowsHookEx(
-            NativeMethods.WhKeyboardLl,
-            hookProc,
-            moduleHandle,
-            0);
-
-        if (hookHandle == IntPtr.Zero)
+        var activity = new KeyboardActivityInfo(code, unchecked((int)sample.ScanCode), down,
+            (sample.Flags & NativeMethods.KbdLlHookFlagExtended) != 0,
+            _activeModifiers, modifierKey, modifier, sample.TimestampUtc);
+        foreach (Action<KeyboardActivityInfo> handler in KeyActivityReceived?.GetInvocationList() ?? [])
         {
-            ThrowWin32Exception("Global klavye kancasi kurulamadi.");
-        }
-
-        return hookHandle;
-    }
-
-    private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-    {
-        try
-        {
-            if (nCode >= 0)
+            try { handler(activity); }
+            catch (Exception exception)
             {
-                int message = unchecked((int)wParam.ToInt64());
-
-                if (message is NativeMethods.WmKeyDown
-                    or NativeMethods.WmKeyUp
-                    or NativeMethods.WmSysKeyDown
-                    or NativeMethods.WmSysKeyUp)
-                {
-                    NativeMethods.KBDLLHOOKSTRUCT hookData =
-                        Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(lParam);
-
-                    bool isKeyDown = message is NativeMethods.WmKeyDown
-                        or NativeMethods.WmSysKeyDown;
-                    int virtualKeyCode = unchecked((int)hookData.vkCode);
-                    bool isModifierKey = TryMapModifier(virtualKeyCode, out HotkeyModifiers modifierKey);
-                    // Capture a point-in-time modifier snapshot under the lock, then notify
-                    // listeners outside the lock so callbacks cannot block hook state updates.
-                    HotkeyModifiers activeModifiers = UpdateActiveModifiers(modifierKey, isKeyDown);
-
-                    var keyboardActivity = new KeyboardActivityInfo(
-                        virtualKeyCode,
-                        unchecked((int)hookData.scanCode),
-                        isKeyDown,
-                        (hookData.flags & NativeMethods.KbdLlHookFlagExtended) != 0,
-                        activeModifiers,
-                        isModifierKey,
-                        modifierKey);
-
-                    SafeInvokeKeyActivityReceived(keyboardActivity);
-                }
+                try { _logger.Log(AppLogLevel.Error, nameof(WindowsKeyboardHookSource), "Klavye olayı dinleyicilere iletilirken hata oluştu.", exception); }
+                catch (Exception) { }
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(
-                AppLogLevel.Error,
-                nameof(WindowsKeyboardHookSource),
-                "Klavye kancasi callback'i islenirken hata olustu.",
-                ex);
-        }
-
-        return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
-    }
-
-    private void SafeInvokeKeyActivityReceived(KeyboardActivityInfo keyboardActivity)
-    {
-        try
-        {
-            KeyActivityReceived?.Invoke(keyboardActivity);
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(
-                AppLogLevel.Error,
-                nameof(WindowsKeyboardHookSource),
-                "Klavye olayi dinleyicilere iletilirken hata olustu.",
-                ex);
-        }
-    }
-
-    private HotkeyModifiers UpdateActiveModifiers(
-        HotkeyModifiers modifier,
-        bool isKeyDown)
-    {
-        lock (_syncRoot)
-        {
-            if (modifier != HotkeyModifiers.None)
-            {
-                _activeModifiers = isKeyDown
-                    ? _activeModifiers | modifier
-                    : _activeModifiers & ~modifier;
-            }
-
-            return _activeModifiers;
         }
     }
 
@@ -251,39 +109,18 @@ public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable
         }
     }
 
-    private static void ThrowWin32Exception(string message)
-    {
-        int errorCode = Marshal.GetLastWin32Error();
-        var nativeException = new Win32Exception(errorCode);
-        InvalidOperationException exception = new(
-            FormattableString.Invariant(
-                $"{message} Win32 hata kodu: {errorCode}. {nativeException.Message}"),
-            nativeException);
-        throw exception;
-    }
-
-    private void ThrowIfDisposed()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-    }
 
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
+        _owner.DisposeSource(HookKind.Keyboard);
+        Interlocked.Exchange(ref _disposed, 1);
+        _owner.KeyboardReceived -= ProcessSample;
+    }
 
-        try
-        {
-            StopCore();
-        }
-        catch
-        {
-            // no-op
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
+    public async ValueTask DisposeAsync()
+    {
+        await _owner.DisposeSourceAsync(HookKind.Keyboard).ConfigureAwait(false);
+        Interlocked.Exchange(ref _disposed, 1);
+        _owner.KeyboardReceived -= ProcessSample;
     }
 }

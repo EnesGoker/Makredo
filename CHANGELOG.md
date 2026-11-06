@@ -20,6 +20,10 @@
 
 ### Düzeltilenler
 
+- Klavye ve fare kaydı artık arayüzden bağımsız bir hook thread'i ve arka plan
+  tüketicisi kullanır. Kayıt süreleri hook'un yakalama zamanından hesaplanır;
+  durdurmada kuyruktaki olaylar kaybolmadan kayda eklenir.
+
 - Oynatma durdurulduğunda, iptal edildiğinde, hata verdiğinde veya normal
   tamamlandığında kendi bastığı tuşları ve fare düğmelerini ters sırayla bırakır.
   Pencere kapanışı bu temizliğin bitmesini bekler; simülasyon gerçek girdi göndermez.
@@ -46,6 +50,10 @@
   active leased attempts and fresh directories are preserved.
 
 ### Fixed
+
+- Keyboard and mouse recording now uses a dedicated hook thread and background
+  consumer independent of the UI. Timing comes from native capture timestamps;
+  stopping drains queued input into the recording before completing.
 
 - Playback releases its own held keys and mouse buttons in reverse order on stop,
   cancellation, error or normal completion. Window shutdown waits for cleanup;
