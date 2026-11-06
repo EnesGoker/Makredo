@@ -2,25 +2,25 @@
 
 Bu dosya projenin **canlı durumudur**. Her ajan görev başında okur, görev sırasında ve sonunda günceller. Kurallar `AGENTS.md` §1–§5'te. Kısa tut: biten görevler tabloda tek satır olarak kalır, ayrıntıları PR'dadır.
 
-**Son güncelleme:** 2026-11-06 · codex · T1.1 başladı
+**Son güncelleme:** 2026-11-06 · codex · T1.1 incelemede ([PR #9](https://github.com/EnesGoker/Makredo/pull/9))
 
 ## Durum
-- **Faz:** 1 — Güvenlik ve veri (Faz 0 tamamlandı, T1.1 devam ediyor)
+- **Faz:** 1 — Güvenlik ve veri (Faz 0 tamamlandı, T1.1 incelemede)
 - **Hedef sürüm:** v0.9.0-beta (Faz 3 sonu)
-- **Engel:** T1.1 için yok. Main yalnız squash PR ve üç zorunlu CI kontrolüyle korunuyor.
+- **Engel:** Teknik engel yok; T1.1 [PR #9](https://github.com/EnesGoker/Makredo/pull/9) incelemesini bekliyor. Main yalnız squash PR ve üç zorunlu CI kontrolüyle korunuyor.
 - **Başlangıç istisnası:** Enes'in onayıyla yalnızca T0.1'in import ve kit commit'leri doğrudan `main`'e gönderildi. Sonraki bütün görevler branch ve PR ile ilerler; `AGENTS.md` kuralları geçerlidir.
 
 ## Aktif görevler
 | Görev | Ajan | Branch | Durum | Kaldığı yer / devam notu |
 |---|---|---|---|---|
-| T1.1 — Durum makinesi ve tek uçuş | codex | `codex/T1.1-state-machine` | Devam ediyor | [PR #9](https://github.com/EnesGoker/Makredo/pull/9). Kırmızı kanıt: f3468dc / CI 42186380050 (130 Core, 8 beklenen hata); ilk regresyonlar değişmedi. Sahiplik/ortak Start-Stop task'ları ve FIFO olay yayını düzeltildi; yerelde Core 145/145, Release 0 uyarı/hata. ADR-0013 ve changelog hazır. Sıradaki yeşil CI ve 25 Concurrency vakasının 100 tekrar (2500 geçiş) artifact kanıtı. |
+| T1.1 — Durum makinesi ve tek uçuş | codex | `codex/T1.1-state-machine` | İncelemede | [PR #9](https://github.com/EnesGoker/Makredo/pull/9): test-only f3468dc [kırmızı 42186380050](https://github.com/EnesGoker/Makredo/actions/runs/42186380050) → düzeltme 81c24ea [yeşil 42188321449](https://github.com/EnesGoker/Makredo/actions/runs/42188321449). R1/R2/R4/R9 ve FIFO regresyonları aynı kaldı; Core 145/145, üç CI işi yeşil, Release 0 uyarı/hata. Mac ve Ubuntu CI ayrı ayrı 100×25=2500 geçti; TRX/summary artifact PR'da. ADR-0013/CHANGELOG güncel. Son devir SHA kontrolü PR açıklamasında. |
 
 Durum değerleri: `Devam ediyor` · `Yarım kaldı` (limit bitti) · `İncelemede` (PR açık) · `Bekliyor` (Enes'ten cevap bekleniyor).
 
 ## Sıradaki
-1. **T1.1** Durum makinesi ve tek uçuş (aktif)
-2. **T1.2** Basılı girdileri bırakma
-3. **T1.3** Hook'ları ayrı thread'e taşı
+1. **T1.2** Basılı girdileri bırakma
+2. **T1.3** Hook'ları ayrı thread'e taşı
+3. **T1.4** Enjekte girdi
 
 Faz 0 içinde T0.3 ile T0.4, T0.2 bittikten sonra paralel yürüyebilir. Sıra ve bağımlılıklar `docs/ROADMAP.md`'de.
 
@@ -46,14 +46,14 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 
 - T1.1 incelemesi: Recorder.Clear yalnız Recording durumunu reddediyor; asenkron Stop sırasında Stopping iken tamponları silebilir. Bu görev Start/Play/Stop sahipliğini düzeltir; Clear/oturum belgesi davranışı T1.7 sırasında ele alınmalı. AppCompositionRoot mevcut MacroPlaybackService IDisposable nesnesini disposable listesine almıyor; servis ömrü/Shutdown hata yönetimiyle birlikte ayrıca değerlendirilmeli.
 
-## Son doğrulama — T0.8
-- [PR #8](https://github.com/EnesGoker/Makredo/pull/8), araç kaynak SHA `c0ebeb3`; [ayrı discovery 42132475118](https://github.com/EnesGoker/Makredo/actions/runs/42132475118). Gerçek rapor/PNG ve Faz 1 kararı [ADR-0003](adr/0003-test-and-ci-strategy.md)'te; kanıt artifact linkleri orada.
-- x64: WinForms formu gösterildi, gerçek ekran PNG'si iki marker ile ilk denemede doğrulandı (640×360, 96 DPI). ARM64: form Visible/Handle/Paint ve PNG yazma başarılı, ama 10 denemede marker eşleşmedi; saklanan son PNG Windows cihaz gizliliği ekranını gösteriyor. ARM64 API desteği genel olarak yok denmiyor; bu runner masaüstünde kullanılabilir form görüntüsü kanıtlanmadı, kesin foreground/desktop nedeni teşhis edilmedi.
-- x64 ve native ARM64: 40 byte INPUT, keyboard/mouse low-level hook kuruldu; 4/4 etiketli F24 down/up + iki tıklamasız hareket yakalandı. Raw klavye flags 0x10/0x90, fare flags 0x01. Cleanup key-up 1/1, cursor restore ve iki unhook başarılı. İlişkisiz gerçek tuş değerleri kaydedilmedi.
-- Deney aracı IsTestProject=false, normal dotnet test'e veya ürün/test referanslarına girmez. CI/Windows/arch kapısı ve açık --ci-discovery bayrağı UI/native/dosya işlemlerinden önce zorunlu; input wrapper ayrıca CI kontrolü yapar. Workflow'da GITHUB_ACTIONS=false ve eksik bayrak denemeleri exit2 + çıktı yok ile geçti. Mac'te araç hiç çalıştırılmadı.
-- [Zorunlu CI 42132475038](https://github.com/EnesGoker/Makredo/actions/runs/42132475038) üç iş yeşil: Ubuntu Core 120; Windows x64/ARM64 107 Core + 34 Windows geçti, mevcut 5 Unix skip (146 sonuç). Build 0 uyarı/hata, format/audit geçti. Solution'daki sekizinci araç nedeniyle audit beklenen proje sayısı XML'den hesaplanıyor; zorunlu iş adları ve testleri aynı.
-- Yerel Mac: Release build 0 uyarı/hata, Core 120/120 ve format geçti. Ürün kodu, test dosyaları, SDK pini, props ve ajan kuralları değişmedi. Ayrı discovery workflow dispatch + ilgili PR değişiklikleriyle çalışır; PNG/JSON/log artifact'ları 30 gün saklanır. Yeşil keşif işi her yetenek destekleniyor demek değildir; negatif gözlem de raporlanır.
-- Faz 1: iki mimaride gerçek hook/SendInput entegrasyonu mümkün; güvenlik çıkış yolları Core fake'lerle ve CI gerçek adaptörle birlikte test edilmeli. Fiziksel acil durdurmanın pozitif yolu Core non-injected fake + manuel K1 ister; injected CI girdisini fiziksel kanıt sayma. x64 ekran görüntüsü baseline'ı kanıtlandı, ARM64 görüntü karşılaştırmasından önce kullanılabilir masaüstü doğrulanmalı.
+## Son doğrulama — T1.1
+- TDD kırmızı: yalnız test/HANDOFF commit'i `f3468dc`, [CI 42186380050](https://github.com/EnesGoker/Makredo/actions/runs/42186380050). Core 130 vakada 8 beklenen hata, 122 geçti: R1 iki izinsiz self geçişi, R2 iki start senaryosu, R4 aktif Playing→Idle, R9 boş olay listesi, iki StateChanged sırası. Üç zorunlu iş kırmızı; üretim kodu o SHA'da değişmedi.
+- Yeşil: düzeltme `81c24ea`, [CI 42188321449](https://github.com/EnesGoker/Makredo/actions/runs/42188321449) üç iş ve CodeQL yeşil (`gh pr checks 9` exit 0). İlk dört regresyon dosyası kırmızı commit ile birebir aynı. Son doküman commit'i yalnız bu devir notunu değiştirir; PR'ın en son SHA kontrolü açıklamada.
+- Yerel Mac: `dotnet build -c Release` **0 uyarı, 0 hata**; `dotnet format --verify-no-changes` geçti; Core **145 geçti, 0 atlanan**. Windows x64/ARM64: her birinde **132 Core geçti + mevcut 5 Unix skip**, Windows **34/34 geçti** (171 sonuç, 166 geçen). Format ve 8 proje açık paket taraması geçti.
+- 100 tekrar: `scripts/repeat-concurrency-tests.ps1 -Iterations 100 -ExpectedCases 25`; Mac **100/100, 2500 geçiş, 0 hata/skip**, 94,07 saniye. Ubuntu CI **100/100, 2500 geçiş, 0 hata/skip**, 170,07 saniye. CI'dan indirilen 100 TRX dosyası ayrıca tek tek doğrulandı; [artifact](https://github.com/EnesGoker/Makredo/actions/runs/42188321449/artifacts/13487839519) her çalıştırmanın TRX/log'unu ve summary.json'u içerir. Bariyer/TCS yarışmayı kurar; sabit bekleme yok, timeout yalnız deadlock korumasıdır.
+- TryTransitionTo aynı duruma yalnız açık izinle true döner. Durumlar kilitte commit + subscriber snapshot FIFO kuyruğuna alınır, tek publisher kilit dışında yayımlar. Reentrant/eşzamanlı çağrı bildirim tamamlanmadan dönebilir; CurrentState son commit'tir. Subscriber hatası kuyruğu kilitlemez; ilk hata drain sonrası korunur. Karar [ADR-0013](adr/0013-state-and-lifecycle-ownership.md)'te.
+- Recorder Start/Stop ortak task ile tek sahipli; Stop startup/rollback'i bekler, Stop sırasındaki Start yeni oturum kuyruğa koymaz. Playback sahibi Playing yayını öncesi ayrılır ve final bildirimlere kadar korunur; ikinci Play cleanup'a girmez, Stop istekleri aynı uçuşa katılır. Playback Stop hâlâ yalnız durdurma isteğinin tamamlanmasıdır; Play'in tümünün bitişini beklemez.
+- Değişiklikler üç Application servisi, Core testleri, tekrar script/CI adımı, ADR, changelog ve HANDOFF ile sınırlı. Platform/WinForms/native input/SDK/props/ajan kuralları değişmedi. T1.2 basılı girdi bırakma, T1.3 hook thread'i ve T1.6 acil durdurma uygulanmadı; Mac'te gerçek girdi çalıştırılmadı.
 
 ## Öğrenilenler ve tuzaklar
 - Mac'te `net10.0-windows` testleri **çalışmaz**. T0.7 ile Windows x64 ve ARM64 sonuçları CI'dan alınır; TRX artifact'ları her işte saklanır. `scripts/verify-ci-tests.ps1` kaynak ve TRX kapsamını kontrol eder.
@@ -69,7 +69,8 @@ Görev sırasında fark edilen ama o görevin işi olmayan şeyler buraya yazıl
 - T0.6 sayım scripti baseline `001acea` kaynaklarını `git show` ile okur; CI'da çalıştırılacaksa bu commit'i içeren history fetch edilmelidir. Kaynak sayımı Windows testlerini çalıştırmaz; Mac Core sonucu ayrıca raporlanır.
 - T0.7: Test fixture'larında `macros/file.json` gibi birleşik yol metinlerini dönen dosya listeleriyle dizge olarak kıyaslama; Path.Combine ile bileşenleri ayrı kur. Mevcut UnixTheory'ler Windows'ta 13 satırdan 5 skip sonucu üretir; VSTest'in notExecuted sayacı 0 kalabilir, tekil outcome ve total−executed kanıtına bak.
 - T0.8: Form Visible/Handle/Paint olması ekran PNG'sinin o formu gösterdiğini kanıtlamaz. CopyFromScreen sonucunda marker doğrula; ARM64 ilk koşusunda privacy setup görüldü. Hook başarısı fiziksel acil durdurma kanıtı değildir: SendInput olayları gerçekten injected flag taşır.
-- `.gitattributes` ve renormalizasyon T0.2'de tamamlandı; T0.7'nin işi değil. Index LF saklar, kapsanan çalışma dosyaları CRLF ve ikon/PNG binary kalır. ADR-0003 T0.8'de tamamlandı; ADR-0004–0010 yol haritasına ayrılmıştır. Göç kararı ADR-0011, taşınabilir test sınırları ADR-0012'dir.
+- T1.1: StateChanged callback'inde senkron Task bekleme kullanma; FIFO yayında event argümanı tarihsel olabilir, CurrentState daha ileride olabilir. Start/Stop tamamlanmasını ortak task temsil eder; Playback Stop yalnız istek tamamlanmasıdır. Concurrency kategorisine vaka eklenince CI tekrarındaki ExpectedCases=25 sayısını bilinçli güncelle; eksik/sıfır/skip/isim kayması script tarafından reddedilir.
+- `.gitattributes` ve renormalizasyon T0.2'de tamamlandı; T0.7'nin işi değil. Index LF saklar, kapsanan çalışma dosyaları CRLF ve ikon/PNG binary kalır. ADR-0003 T0.8'de tamamlandı; ADR-0004–0010 yol haritasına ayrılmıştır. Göç kararı ADR-0011, taşınabilir test sınırları ADR-0012, durum/yaşam döngüsü sahipliği ADR-0013'tür.
 
 ## Tamamlananlar
 | Görev | PR | Tarih | Ajan |
