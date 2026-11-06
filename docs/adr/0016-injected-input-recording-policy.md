@@ -7,7 +7,7 @@
 ## Decision
 
 Every product SendInput request carries the fixed opaque dwExtraInfo marker
-0xD79A6C53E2184F9B on 64-bit processes (0xD79A6C53 on 32-bit processes).
+0xD79A6C53E2184F9B on 64-bit processes (0x679A6C53 on 32-bit processes).
 This includes keyboard, mouse, double-click sub-events and cleanup releases.
 Cursor positioning also uses marked absolute SendInput on the virtual desktop:
 SetCursorPos cannot carry dwExtraInfo and would otherwise leak movement events.
