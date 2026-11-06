@@ -208,7 +208,7 @@ public sealed class HookThreadIntegrationTests(ITestOutputHelper output)
     private sealed record ProbeSnapshot(int Events, double FirstLatencyMs, double LastLatencyMs,
         bool AllWhileUiBlocked, bool AllOffUiThread, int LastThread);
 
-    private static class NativeInput
+    internal static class NativeInput
     {
         internal const int VirtualKeyF24 = 0x87;
         private static readonly IntPtr InputMarker = new(0x4D4B5233);
