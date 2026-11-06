@@ -7,4 +7,6 @@ public sealed record MouseActivityInfo(
     int? X,
     int? Y,
     int? WheelDelta,
-    DateTime TimestampUtc);
+    DateTime TimestampUtc,
+    bool IsInjected = false,
+    ulong ExtraInfo = 0);

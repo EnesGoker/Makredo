@@ -20,6 +20,9 @@
 
 ### Düzeltilenler
 
+- Oynatmanın kendi girdileri ve bırakma olayları kayda alınmaz. Diğer uygulamaların
+  enjekte ettiği girdiler varsayılan olarak kaydedilir; bu seçenek ayarlardan kapatılabilir.
+
 - Klavye ve fare kaydı artık arayüzden bağımsız bir hook thread'i ve arka plan
   tüketicisi kullanır. Kayıt süreleri hook'un yakalama zamanından hesaplanır;
   durdurmada kuyruktaki olaylar kaybolmadan kayda eklenir.
@@ -50,6 +53,9 @@
   active leased attempts and fresh directories are preserved.
 
 ### Fixed
+
+- Playback input and cleanup releases are excluded from recording. Foreign injected
+  input remains enabled by default and can be disabled in settings.
 
 - Keyboard and mouse recording now uses a dedicated hook thread and background
   consumer independent of the UI. Timing comes from native capture timestamps;

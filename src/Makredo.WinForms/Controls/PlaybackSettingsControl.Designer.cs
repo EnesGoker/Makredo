@@ -20,6 +20,7 @@ partial class PlaybackSettingsControl
     private ModernCheckBox loopIndefinitelyCheckBox = null!;
     private ModernCheckBox stopOnErrorCheckBox = null!;
     private ModernCheckBox relativeCoordinatesCheckBox = null!;
+    private ModernCheckBox recordInjectedInputCheckBox = null!;
     private ModernCheckBox simulationModeCheckBox = null!;
 
     protected override void Dispose(bool disposing)
@@ -48,6 +49,7 @@ partial class PlaybackSettingsControl
         stopOnErrorCheckBox = new ModernCheckBox();
         relativeCoordinatesCheckBox = new ModernCheckBox();
         simulationModeCheckBox = new ModernCheckBox();
+        recordInjectedInputCheckBox = new ModernCheckBox { Dock = DockStyle.Fill, Name = "recordInjectedInputCheckBox", Text = "Dışarıdan enjekte edilen girdileri kaydet" };
 
         rootLayoutPanel.SuspendLayout();
         settingsLayoutPanel.SuspendLayout();
@@ -109,15 +111,17 @@ partial class PlaybackSettingsControl
         optionsLayoutPanel.Controls.Add(stopOnErrorCheckBox, 0, 2);
         optionsLayoutPanel.Controls.Add(relativeCoordinatesCheckBox, 0, 3);
         optionsLayoutPanel.Controls.Add(simulationModeCheckBox, 0, 4);
+        optionsLayoutPanel.Controls.Add(recordInjectedInputCheckBox, 0, 5);
         optionsLayoutPanel.Dock = DockStyle.Fill;
         optionsLayoutPanel.Margin = Padding.Empty;
         optionsLayoutPanel.Name = "optionsLayoutPanel";
-        optionsLayoutPanel.RowCount = 5;
-        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
-        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
-        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
-        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
-        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
+        optionsLayoutPanel.RowCount = 6;
+        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66667F));
+        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66667F));
+        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66667F));
+        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66667F));
+        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66667F));
+        optionsLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66667F));
 
         // initialDelayValueLayoutPanel
         initialDelayValueLayoutPanel.ColumnCount = 2;

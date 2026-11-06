@@ -7,6 +7,7 @@ public sealed class PlaybackSettings
     public int InitialDelayMs { get; set; }
     public bool LoopIndefinitely { get; set; }
     public bool UseRelativeCoordinates { get; set; }
+    public bool RecordInjectedInput { get; set; } = true;
     public bool SimulationMode { get; set; }
     public bool StopOnError { get; set; } = true;
     public bool PreserveOriginalTiming { get; set; } = true;

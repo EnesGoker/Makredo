@@ -11,7 +11,7 @@ namespace Makredo.Platform.Windows.Hooks;
 internal enum HookKind { Keyboard = 1, Mouse = 2 }
 
 internal readonly record struct HookSample(HookKind Kind, int Message, uint Code, uint ScanCode,
-    uint Flags, uint Time, int X, int Y, uint MouseData, DateTime TimestampUtc);
+    uint Flags, uint Time, int X, int Y, uint MouseData, DateTime TimestampUtc, ulong ExtraInfo = 0);
 
 internal sealed class WindowsHookThread
 {
@@ -305,7 +305,7 @@ internal sealed class WindowsHookThread
             {
                 NativeMethods.KBDLLHOOKSTRUCT raw = Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(data);
                 _callbackWriter!.TryWrite(new HookPacket(new HookSample(HookKind.Keyboard, kind,
-                    raw.vkCode, raw.scanCode, raw.flags, raw.time, 0, 0, 0, default), null));
+                    raw.vkCode, raw.scanCode, raw.flags, raw.time, 0, 0, 0, default, unchecked((ulong)raw.dwExtraInfo.ToInt64())), null));
             }
         }
         return NativeMethods.CallNextHookEx(IntPtr.Zero, code, message, data);
@@ -318,7 +318,7 @@ internal sealed class WindowsHookThread
             NativeMethods.MSLLHOOKSTRUCT raw = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(data);
             _callbackWriter!.TryWrite(new HookPacket(new HookSample(HookKind.Mouse,
                 unchecked((int)message.ToInt64()), 0, 0, raw.flags, raw.time,
-                raw.pt.x, raw.pt.y, raw.mouseData, default), null));
+                raw.pt.x, raw.pt.y, raw.mouseData, default, unchecked((ulong)raw.dwExtraInfo.ToInt64())), null));
         }
         return NativeMethods.CallNextHookEx(IntPtr.Zero, code, message, data);
     }

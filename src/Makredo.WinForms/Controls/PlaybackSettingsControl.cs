@@ -38,6 +38,7 @@ public partial class PlaybackSettingsControl : UserControl
             LoopIndefinitely = loopIndefinitelyCheckBox.Checked,
             UseRelativeCoordinates = relativeCoordinatesCheckBox.Checked,
             SimulationMode = simulationModeCheckBox.Checked,
+            RecordInjectedInput = recordInjectedInputCheckBox.Checked,
             StopOnError = stopOnErrorCheckBox.Checked,
             PreserveOriginalTiming = preserveTimingCheckBox.Checked
         };
@@ -65,6 +66,7 @@ public partial class PlaybackSettingsControl : UserControl
             loopIndefinitelyCheckBox.Checked = settings.LoopIndefinitely;
             relativeCoordinatesCheckBox.Checked = settings.UseRelativeCoordinates;
             simulationModeCheckBox.Checked = settings.SimulationMode;
+            recordInjectedInputCheckBox.Checked = settings.RecordInjectedInput;
             RefreshDependentControlState();
         }
         finally
@@ -80,6 +82,7 @@ public partial class PlaybackSettingsControl : UserControl
         loopIndefinitelyCheckBox.Enabled = enabled;
         relativeCoordinatesCheckBox.Enabled = enabled;
         simulationModeCheckBox.Enabled = enabled;
+        recordInjectedInputCheckBox.Enabled = enabled;
         initialDelayNumericUpDown.Enabled = enabled;
         speedComboBox.Enabled = enabled && !preserveTimingCheckBox.Checked;
         repeatCountNumericUpDown.Enabled = enabled && !loopIndefinitelyCheckBox.Checked;
@@ -186,7 +189,8 @@ public partial class PlaybackSettingsControl : UserControl
             loopIndefinitelyCheckBox,
             stopOnErrorCheckBox,
             relativeCoordinatesCheckBox,
-            simulationModeCheckBox
+            simulationModeCheckBox,
+            recordInjectedInputCheckBox
         })
         {
             optionCheckBox.Margin = new Padding(
@@ -214,6 +218,7 @@ public partial class PlaybackSettingsControl : UserControl
         loopIndefinitelyCheckBox.CheckedChanged += OnSettingChanged;
         relativeCoordinatesCheckBox.CheckedChanged += OnSettingChanged;
         simulationModeCheckBox.CheckedChanged += OnSettingChanged;
+        recordInjectedInputCheckBox.CheckedChanged += OnSettingChanged;
     }
 
     private void OnSettingChanged(object? sender, EventArgs e)

@@ -1505,6 +1505,7 @@ public partial class MainForm : Form
         try
         {
             _playbackSettingsControl.ApplySettings(playbackSettings);
+            _macroRecorderService.RecordInjectedInput = playbackSettings.RecordInjectedInput;
         }
         finally
         {
@@ -2130,6 +2131,7 @@ public partial class MainForm : Form
 
     private void playbackSettingsControl_SettingsChanged(object? sender, EventArgs e)
     {
+        _macroRecorderService.RecordInjectedInput = _playbackSettingsControl.GetCurrentSettings().RecordInjectedInput;
         _ = sender;
         _ = e;
 

@@ -8,4 +8,6 @@ public sealed record KeyboardActivityInfo(
     HotkeyModifiers ActiveModifiers,
     bool IsModifierKey,
     HotkeyModifiers ModifierKey,
-    DateTime? TimestampUtc = null);
+    DateTime? TimestampUtc = null,
+    bool IsInjected = false,
+    ulong ExtraInfo = 0);

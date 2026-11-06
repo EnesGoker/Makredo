@@ -58,13 +58,13 @@ public sealed class WindowsKeyboardHookSource : IKeyboardHookSource, IDisposable
         bool down = sample.Message is NativeMethods.WmKeyDown or NativeMethods.WmSysKeyDown;
         int code = unchecked((int)sample.Code);
         bool modifierKey = TryMapModifier(code, out HotkeyModifiers modifier);
-        if (modifier != HotkeyModifiers.None)
+        if (modifier != HotkeyModifiers.None && sample.ExtraInfo != InputOriginPolicy.PlaybackSignature)
         {
             _activeModifiers = down ? _activeModifiers | modifier : _activeModifiers & ~modifier;
         }
         var activity = new KeyboardActivityInfo(code, unchecked((int)sample.ScanCode), down,
             (sample.Flags & NativeMethods.KbdLlHookFlagExtended) != 0,
-            _activeModifiers, modifierKey, modifier, sample.TimestampUtc);
+            _activeModifiers, modifierKey, modifier, sample.TimestampUtc, (sample.Flags & 0x10) != 0, sample.ExtraInfo);
         foreach (Action<KeyboardActivityInfo> handler in KeyActivityReceived?.GetInvocationList() ?? [])
         {
             try { handler(activity); }
