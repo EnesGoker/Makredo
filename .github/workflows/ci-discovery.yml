@@ -1,0 +1,108 @@
+name: CI discovery
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/ci-discovery.yml'
+      - 'tools/Makredo.CiDiscovery/**'
+      - 'docs/adr/0003-test-and-ci-strategy.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_UI_LANGUAGE: en
+
+jobs:
+  discovery:
+    name: Discovery / ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            architecture: x64
+            label: x64
+          - runner: windows-11-arm
+            architecture: arm64
+            label: ARM64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+          architecture: ${{ matrix.architecture }}
+      - name: Verify native CI environment
+        shell: pwsh
+        env:
+          EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
+        run: |
+          if ($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows') { throw 'Discovery requires GitHub Actions on Windows.' }
+          $info = dotnet --info
+          if ($LASTEXITCODE -ne 0) { throw 'dotnet --info failed.' }
+          $info
+          $pattern = '(?m)^\s*Architecture:\s+' + [regex]::Escape($env:EXPECTED_ARCHITECTURE) + '\s*$'
+          if (($info -join "`n") -notmatch $pattern) { throw 'Unexpected .NET host architecture.' }
+      - name: Build isolated discovery tool
+        run: dotnet build tools/Makredo.CiDiscovery -c Release
+      - name: Verify denied launches have no side effects
+        shell: pwsh
+        run: |
+          $deniedOutput = 'artifacts/ci-discovery-denied'
+          $missingConsentOutput = 'artifacts/ci-discovery-missing-consent'
+          if ((Test-Path $deniedOutput) -or (Test-Path $missingConsentOutput)) { throw 'Guard output paths must start absent.' }
+          $originalActions = $env:GITHUB_ACTIONS
+          try {
+            $env:GITHUB_ACTIONS = 'false'
+            dotnet run --project tools/Makredo.CiDiscovery -c Release --no-build -- --ci-discovery --output $deniedOutput
+            if ($LASTEXITCODE -ne 2) { throw 'A non-CI launch must exit with code 2.' }
+            if (Test-Path $deniedOutput) { throw 'A denied launch created output.' }
+          }
+          finally {
+            $env:GITHUB_ACTIONS = $originalActions
+          }
+          dotnet run --project tools/Makredo.CiDiscovery -c Release --no-build -- --output $missingConsentOutput
+          if ($LASTEXITCODE -ne 2) { throw 'A launch without explicit consent must exit with code 2.' }
+          if (Test-Path $missingConsentOutput) { throw 'A launch without explicit consent created output.' }
+          $global:LASTEXITCODE = 0
+      - name: Observe WinForms capture and injected hook events
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/ci-discovery | Out-Null
+          dotnet run --project tools/Makredo.CiDiscovery -c Release --no-build -- --ci-discovery --output artifacts/ci-discovery 2>&1 | Tee-Object -FilePath artifacts/ci-discovery/console.log
+          if ($LASTEXITCODE -ne 0) { throw 'Discovery tool failed unexpectedly.' }
+      - name: Summarize observations
+        if: always()
+        shell: pwsh
+        env:
+          EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
+        run: |
+          $reportPath = 'artifacts/ci-discovery/report.json'
+          if (-not (Test-Path $reportPath)) { throw 'Discovery did not produce its report.' }
+          $json = Get-Content $reportPath -Raw
+          $report = $json | ConvertFrom-Json
+          if ($report.schemaVersion -ne 1 -or $report.commit -cne $env:GITHUB_SHA) { throw 'Unexpected report schema or source commit.' }
+          if ($report.processArchitecture.ToLowerInvariant() -cne $env:EXPECTED_ARCHITECTURE) { throw 'The probe process did not run natively.' }
+          if ($report.screenshotSupported -isnot [bool]) { throw 'Discovery report lacks a screenshot capability result.' }
+          if ($null -eq $report.hooks -or $report.hooks.succeeded -isnot [bool]) { throw 'Discovery report lacks a hook capability result.' }
+          if ($report.screenshotSupported -and -not (Test-Path 'artifacts/ci-discovery/screenshot-form.png')) { throw 'Reported screenshot support without PNG evidence.' }
+          @('## CI discovery observations', '', '```json', $json, '```') | Add-Content $env:GITHUB_STEP_SUMMARY
+      - name: Upload screenshots and native observations
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-discovery-${{ matrix.label }}
+          path: artifacts/ci-discovery/**
+          if-no-files-found: error
+          retention-days: 30
