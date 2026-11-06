@@ -6,11 +6,12 @@ using Makredo.Platform.Windows.Hooks;
 using Makredo.Windows.Tests.Playback;
 using Makredo.WinForms.Controls;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Makredo.Windows.Tests.Hooks;
 
 [Collection("Native input")]
-public sealed class InjectedSettingsTests
+public sealed class InjectedSettingsTests(ITestOutputHelper output)
 {
     [Theory]
     [InlineData(0, 0, 100, 327)]
@@ -57,6 +58,7 @@ public sealed class InjectedSettingsTests
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15), TimeProvider.System);
         foreach (bool enabled in new[] { false, true })
         {
+            output.WriteLine($"Foreign injected keyboard/mouse recording enabled={enabled}.");
             recorder.RecordInjectedInput = enabled;
             var arrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             int events = 0;
