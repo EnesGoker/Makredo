@@ -13,6 +13,9 @@ public sealed class MacroRecorderService : IMacroRecorderService
     private Task? _stopFlight;
     private readonly IKeyboardHookSource _keyboardHookSource;
     private readonly IMouseHookSource _mouseHookSource;
+    private readonly ITimestampedMouseHookSource? _timestampedMouseHookSource;
+    private readonly TimeProvider _timeProvider;
+    private bool _acceptingEvents;
     private readonly IApplicationStateService _applicationStateService;
     private readonly IHotkeyConfiguration _hotkeyConfiguration;
     private readonly IAppLogger _logger;
@@ -28,10 +31,13 @@ public sealed class MacroRecorderService : IMacroRecorderService
         IMouseHookSource mouseHookSource,
         IApplicationStateService applicationStateService,
         IHotkeyConfiguration hotkeyConfiguration,
-        IAppLogger? logger = null)
+        IAppLogger? logger = null,
+        TimeProvider? timeProvider = null)
     {
         _keyboardHookSource = keyboardHookSource;
         _mouseHookSource = mouseHookSource;
+        _timestampedMouseHookSource = mouseHookSource as ITimestampedMouseHookSource;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _applicationStateService = applicationStateService;
         _hotkeyConfiguration = hotkeyConfiguration;
         _logger = logger ?? NullAppLogger.Instance;
@@ -182,7 +188,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
         MacroSession session = new()
         {
             Name = string.IsNullOrWhiteSpace(sessionName)
-                ? $"Macro_{DateTime.UtcNow:yyyyMMdd_HHmmss}"
+                ? $"Macro_{_timeProvider.GetUtcNow().UtcDateTime:yyyyMMdd_HHmmss}"
                 : sessionName.Trim()
         };
 
@@ -205,13 +211,14 @@ public sealed class MacroRecorderService : IMacroRecorderService
             lock (_syncRoot)
             {
                 _currentSession = session;
-                ResetRecordingBuffersUnsafe(DateTime.UtcNow);
+                ResetRecordingBuffersUnsafe(_timeProvider.GetUtcNow().UtcDateTime);
+                _acceptingEvents = true;
                 sessionPrepared = true;
             }
 
             _keyboardHookSource.KeyActivityReceived += OnKeyboardActivityReceived;
             keyboardSubscribed = true;
-            _mouseHookSource.MouseActivityReceived += OnMouseActivityReceived;
+            SubscribeMouse();
             mouseSubscribed = true;
 
             await _keyboardHookSource.StartAsync(cancellationToken);
@@ -240,7 +247,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
 
             if (mouseSubscribed)
             {
-                _mouseHookSource.MouseActivityReceived -= OnMouseActivityReceived;
+                UnsubscribeMouse();
             }
 
             if (mouseHookStarted)
@@ -257,7 +264,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
             {
                 lock (_syncRoot)
                 {
-                    ResetRecordingBuffersUnsafe(DateTime.UtcNow);
+                    ResetRecordingBuffersUnsafe(_timeProvider.GetUtcNow().UtcDateTime);
                     _currentSession = null;
                 }
             }
@@ -308,9 +315,6 @@ public sealed class MacroRecorderService : IMacroRecorderService
 
         List<MacroEvent> eventsToPublish = [];
 
-        _keyboardHookSource.KeyActivityReceived -= OnKeyboardActivityReceived;
-        _mouseHookSource.MouseActivityReceived -= OnMouseActivityReceived;
-
         await TryStopHookAsync(
             _keyboardHookSource.StopAsync,
             "Klavye kancasi durdurulamadi.",
@@ -320,8 +324,11 @@ public sealed class MacroRecorderService : IMacroRecorderService
             "Fare kancasi durdurulamadi.",
             errors);
 
+        _keyboardHookSource.KeyActivityReceived -= OnKeyboardActivityReceived;
+        UnsubscribeMouse();
         lock (_syncRoot)
         {
+            _acceptingEvents = false;
             FlushPendingModifierEventsUnsafe(eventsToPublish);
             _suppressedHotkeyModifierReleases.Clear();
 
@@ -375,7 +382,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
             _pendingModifierEvents.Clear();
             _suppressedHotkeyModifierReleases.Clear();
             _currentSession = null;
-            _lastEventTimestampUtc = DateTime.UtcNow;
+            _lastEventTimestampUtc = _timeProvider.GetUtcNow().UtcDateTime;
         }
 
         _logger.Log(
@@ -386,16 +393,11 @@ public sealed class MacroRecorderService : IMacroRecorderService
 
     private void OnKeyboardActivityReceived(KeyboardActivityInfo keyboardActivity)
     {
-        if (!IsRecording)
-        {
-            return;
-        }
-
         List<MacroEvent>? eventsToPublish = null;
 
         lock (_syncRoot)
         {
-            if (!_applicationStateService.IsState(AppState.Recording) || _currentSession is null)
+            if (!_acceptingEvents || _currentSession is null)
             {
                 return;
             }
@@ -427,33 +429,31 @@ public sealed class MacroRecorderService : IMacroRecorderService
     }
 
     private void OnMouseActivityReceived(MouseActionType mouseActionType, int? x, int? y, int? wheelDelta)
-    {
-        if (!IsRecording)
-        {
-            return;
-        }
+        => OnTimestampedMouseActivityReceived(new MouseActivityInfo(mouseActionType, x, y, wheelDelta, _timeProvider.GetUtcNow().UtcDateTime));
 
+    private void OnTimestampedMouseActivityReceived(MouseActivityInfo activity)
+    {
         List<MacroEvent>? eventsToPublish = null;
 
         lock (_syncRoot)
         {
-            if (!_applicationStateService.IsState(AppState.Recording) || _currentSession is null)
+            if (!_acceptingEvents || _currentSession is null)
             {
                 return;
             }
 
-            DateTime nowUtc = DateTime.UtcNow;
+            DateTime nowUtc = activity.TimestampUtc;
 
             MacroEvent macroEvent = new()
             {
                 EventType = MacroEventType.Mouse,
-                MouseActionType = mouseActionType,
-                X = x,
-                Y = y,
-                WheelDelta = wheelDelta,
+                MouseActionType = activity.ActionType,
+                X = activity.X,
+                Y = activity.Y,
+                WheelDelta = activity.WheelDelta,
                 TimestampUtc = nowUtc,
                 DelayMs = CalculateDelayMsUnsafe(nowUtc),
-                Description = FormatMouseAction(mouseActionType)
+                Description = FormatMouseAction(activity.ActionType)
             };
 
             eventsToPublish = [];
@@ -464,8 +464,27 @@ public sealed class MacroRecorderService : IMacroRecorderService
         PublishRecordedEvents(eventsToPublish);
     }
 
+    private void SubscribeMouse()
+    {
+        if (_timestampedMouseHookSource is not null)
+        {
+            _timestampedMouseHookSource.TimestampedMouseActivityReceived += OnTimestampedMouseActivityReceived;
+        }
+        else { _mouseHookSource.MouseActivityReceived += OnMouseActivityReceived; }
+    }
+
+    private void UnsubscribeMouse()
+    {
+        if (_timestampedMouseHookSource is not null)
+        {
+            _timestampedMouseHookSource.TimestampedMouseActivityReceived -= OnTimestampedMouseActivityReceived;
+        }
+        else { _mouseHookSource.MouseActivityReceived -= OnMouseActivityReceived; }
+    }
+
     private void ResetRecordingBuffersUnsafe(DateTime timestampUtc)
     {
+        _acceptingEvents = false;
         _recordedEvents.Clear();
         _pendingModifierEvents.Clear();
         _suppressedHotkeyModifierReleases.Clear();
@@ -474,7 +493,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
 
     private MacroEvent CreateKeyboardMacroEventUnsafe(KeyboardActivityInfo keyboardActivity)
     {
-        DateTime nowUtc = DateTime.UtcNow;
+        DateTime nowUtc = keyboardActivity.TimestampUtc ?? _timeProvider.GetUtcNow().UtcDateTime;
         string keyName = VirtualKeyDisplayNameFormatter.Format(keyboardActivity.VirtualKeyCode);
 
         return new MacroEvent

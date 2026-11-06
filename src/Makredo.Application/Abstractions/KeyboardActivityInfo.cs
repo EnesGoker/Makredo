@@ -7,4 +7,5 @@ public sealed record KeyboardActivityInfo(
     bool IsExtendedKey,
     HotkeyModifiers ActiveModifiers,
     bool IsModifierKey,
-    HotkeyModifiers ModifierKey);
+    HotkeyModifiers ModifierKey,
+    DateTime? TimestampUtc = null);

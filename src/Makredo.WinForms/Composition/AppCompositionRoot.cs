@@ -85,8 +85,7 @@ internal sealed class AppCompositionRoot : IDisposable
 
         IMutableHotkeyConfiguration hotkeyConfiguration = new MutableHotkeyConfiguration();
 
-        IKeyboardHookSource keyboardHookSource = new WindowsKeyboardHookSource(resolvedLogger);
-        IMouseHookSource mouseHookSource = new WindowsMouseHookSource(resolvedLogger);
+        var (keyboardHookSource, mouseHookSource) = WindowsHookSources.Create(resolvedLogger);
         IHotkeyService hotkeyService = new WindowsHotkeyService(hotkeyConfiguration, resolvedLogger);
 
         IJsonMacroStorageService jsonMacroStorageService = new JsonMacroStorageService();

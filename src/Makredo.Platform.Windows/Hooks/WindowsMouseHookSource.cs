@@ -1,6 +1,3 @@
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Makredo.Application.Abstractions;
 using Makredo.Application.Services;
 using Makredo.Domain.Enums;
@@ -8,230 +5,81 @@ using Makredo.Platform.Windows.Interop;
 
 namespace Makredo.Platform.Windows.Hooks;
 
-public sealed class WindowsMouseHookSource : IMouseHookSource, IDisposable
+public sealed class WindowsMouseHookSource : ITimestampedMouseHookSource, IDisposable, IAsyncDisposable
 {
-    private readonly object _syncRoot = new();
+    private readonly WindowsHookThread _owner;
     private readonly IAppLogger _logger;
-
-    private NativeMethods.HookProc? _hookProc;
-    private IntPtr _hookHandle = IntPtr.Zero;
-    private bool _disposed;
+    private int _disposed;
 
     public WindowsMouseHookSource(IAppLogger? logger = null)
+        : this(new WindowsHookThread(logger ?? NullAppLogger.Instance), logger ?? NullAppLogger.Instance) { }
+
+    internal WindowsMouseHookSource(WindowsHookThread owner, IAppLogger logger)
     {
-        _logger = logger ?? NullAppLogger.Instance;
+        _owner = owner;
+        _logger = logger;
+        _owner.MouseReceived += ProcessSample;
     }
 
-    public bool IsRunning => _hookHandle != IntPtr.Zero;
-
+    public bool IsRunning => _owner.IsRunning(HookKind.Mouse);
     public event Action<MouseActionType, int?, int?, int?>? MouseActivityReceived;
+    public event Action<MouseActivityInfo>? TimestampedMouseActivityReceived;
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        ThrowIfDisposed();
-
-        if (!OperatingSystem.IsWindows())
-        {
-            PlatformNotSupportedException exception = new(
-                "WindowsMouseHookSource yalnizca Windows ortaminda calisir.");
-            _logger.Log(
-                AppLogLevel.Error,
-                nameof(WindowsMouseHookSource),
-                "Fare kancasi Windows disindaki bir ortamda baslatilamadi.",
-                exception);
-            throw exception;
-        }
-
-        lock (_syncRoot)
-        {
-            if (IsRunning)
-            {
-                return Task.CompletedTask;
-            }
-
-            _hookProc = HookCallback;
-            _hookHandle = InstallHook(_hookProc);
-        }
-
-        _logger.Log(
-            AppLogLevel.Information,
-            nameof(WindowsMouseHookSource),
-            "Fare kancasi baslatildi.");
-        return Task.CompletedTask;
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        return _owner.StartAsync(HookKind.Mouse, cancellationToken);
     }
 
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    public Task StopAsync(CancellationToken cancellationToken = default) => _owner.StopAsync(HookKind.Mouse, cancellationToken);
+
+    internal void ProcessSample(HookSample sample)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        StopCore();
-        return Task.CompletedTask;
-    }
-
-    private void StopCore()
-    {
-        bool wasRunning;
-
-        lock (_syncRoot)
+        MouseActionType action = sample.Message switch
         {
-            wasRunning = IsRunning;
-
-            if (!wasRunning)
-            {
-                return;
-            }
-
-            if (!NativeMethods.UnhookWindowsHookEx(_hookHandle))
-            {
-                ThrowWin32Exception("Fare kancasi kaldirilamadi.");
-            }
-
-            _hookHandle = IntPtr.Zero;
-            _hookProc = null;
+            NativeMethods.WmMouseMove => MouseActionType.Move,
+            NativeMethods.WmLButtonDown => MouseActionType.LeftDown,
+            NativeMethods.WmLButtonUp => MouseActionType.LeftUp,
+            NativeMethods.WmRButtonDown => MouseActionType.RightDown,
+            NativeMethods.WmRButtonUp => MouseActionType.RightUp,
+            NativeMethods.WmMButtonDown => MouseActionType.MiddleDown,
+            NativeMethods.WmMButtonUp => MouseActionType.MiddleUp,
+            NativeMethods.WmMouseWheel => MouseActionType.Wheel,
+            NativeMethods.WmLButtonDblClk => MouseActionType.DoubleClick,
+            _ => MouseActionType.None
+        };
+        if (action == MouseActionType.None) { return; }
+        int? wheel = action == MouseActionType.Wheel ? unchecked((short)(sample.MouseData >> 16)) : null;
+        var activity = new MouseActivityInfo(action, sample.X, sample.Y, wheel, sample.TimestampUtc);
+        foreach (Action<MouseActivityInfo> handler in TimestampedMouseActivityReceived?.GetInvocationList() ?? [])
+        {
+            try { handler(activity); }
+            catch (Exception exception) { LogSubscriberFailure(exception); }
         }
-
-        _logger.Log(
-            AppLogLevel.Information,
-            nameof(WindowsMouseHookSource),
-            "Fare kancasi durduruldu.");
-    }
-
-    private static IntPtr InstallHook(NativeMethods.HookProc hookProc)
-    {
-        using Process currentProcess = Process.GetCurrentProcess();
-        ProcessModule? mainModule = currentProcess.MainModule;
-
-        IntPtr moduleHandle = IntPtr.Zero;
-
-        if (mainModule is not null)
+        foreach (Action<MouseActionType, int?, int?, int?> handler in MouseActivityReceived?.GetInvocationList() ?? [])
         {
-            moduleHandle = NativeMethods.GetModuleHandle(mainModule.ModuleName);
-        }
-
-        IntPtr hookHandle = NativeMethods.SetWindowsHookEx(
-            NativeMethods.WhMouseLl,
-            hookProc,
-            moduleHandle,
-            0);
-
-        if (hookHandle == IntPtr.Zero)
-        {
-            ThrowWin32Exception("Global fare kancasi kurulamadi.");
-        }
-
-        return hookHandle;
-    }
-
-    private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-    {
-        try
-        {
-            if (nCode >= 0)
-            {
-                int message = unchecked((int)wParam.ToInt64());
-
-                NativeMethods.MSLLHOOKSTRUCT hookData =
-                    Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
-
-                MouseActionType actionType = message switch
-                {
-                    NativeMethods.WmMouseMove => MouseActionType.Move,
-                    NativeMethods.WmLButtonDown => MouseActionType.LeftDown,
-                    NativeMethods.WmLButtonUp => MouseActionType.LeftUp,
-                    NativeMethods.WmRButtonDown => MouseActionType.RightDown,
-                    NativeMethods.WmRButtonUp => MouseActionType.RightUp,
-                    NativeMethods.WmMButtonDown => MouseActionType.MiddleDown,
-                    NativeMethods.WmMButtonUp => MouseActionType.MiddleUp,
-                    NativeMethods.WmMouseWheel => MouseActionType.Wheel,
-                    NativeMethods.WmLButtonDblClk => MouseActionType.DoubleClick,
-                    _ => MouseActionType.None
-                };
-
-                if (actionType != MouseActionType.None)
-                {
-                    int? wheelDelta = actionType == MouseActionType.Wheel
-                        ? ExtractWheelDelta(hookData.mouseData)
-                        : null;
-
-                    SafeInvokeMouseActivityReceived(
-                        actionType,
-                        hookData.pt.x,
-                        hookData.pt.y,
-                        wheelDelta);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(
-                AppLogLevel.Error,
-                nameof(WindowsMouseHookSource),
-                "Fare kancasi callback'i islenirken hata olustu.",
-                ex);
-        }
-
-        return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
-    }
-
-    private void SafeInvokeMouseActivityReceived(
-        MouseActionType mouseActionType,
-        int? x,
-        int? y,
-        int? wheelDelta)
-    {
-        try
-        {
-            MouseActivityReceived?.Invoke(mouseActionType, x, y, wheelDelta);
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(
-                AppLogLevel.Error,
-                nameof(WindowsMouseHookSource),
-                "Fare olayi dinleyicilere iletilirken hata olustu.",
-                ex);
+            try { handler(action, sample.X, sample.Y, wheel); }
+            catch (Exception exception) { LogSubscriberFailure(exception); }
         }
     }
 
-    private static int ExtractWheelDelta(uint mouseData)
+    private void LogSubscriberFailure(Exception exception)
     {
-        short highWord = unchecked((short)((mouseData >> 16) & 0xffff));
-        return highWord;
-    }
-
-    private static void ThrowWin32Exception(string message)
-    {
-        int errorCode = Marshal.GetLastWin32Error();
-        var nativeException = new Win32Exception(errorCode);
-        InvalidOperationException exception = new(
-            FormattableString.Invariant(
-                $"{message} Win32 hata kodu: {errorCode}. {nativeException.Message}"),
-            nativeException);
-        throw exception;
-    }
-
-    private void ThrowIfDisposed()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        try { _logger.Log(AppLogLevel.Error, nameof(WindowsMouseHookSource), "Fare olayı dinleyicilere iletilirken hata oluştu.", exception); }
+        catch (Exception) { }
     }
 
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
+        _owner.DisposeSource(HookKind.Mouse);
+        Interlocked.Exchange(ref _disposed, 1);
+        _owner.MouseReceived -= ProcessSample;
+    }
 
-        try
-        {
-            StopCore();
-        }
-        catch
-        {
-            // no-op
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
+    public async ValueTask DisposeAsync()
+    {
+        await _owner.DisposeSourceAsync(HookKind.Mouse).ConfigureAwait(false);
+        Interlocked.Exchange(ref _disposed, 1);
+        _owner.MouseReceived -= ProcessSample;
     }
 }
