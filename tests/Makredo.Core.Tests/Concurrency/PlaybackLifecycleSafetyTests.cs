@@ -1,3 +1,4 @@
+using Makredo.Application.Abstractions;
 using Makredo.Application.Services;
 using Makredo.Core.Tests.Support;
 using Makredo.Domain.Enums;
@@ -66,7 +67,7 @@ public sealed class PlaybackLifecycleSafetyTests
     [Trait("Category", "Concurrency")]
     public async Task OverlappingStopRequestsWaitForOneStatePublicationAndCancellation()
     {
-        var adapter = new GatedPlaybackAdapter();
+        var adapter = new AcceptedGatedPlaybackAdapter();
         var state = new ApplicationStateService();
         using var playback = new MacroPlaybackService(adapter, adapter, state);
         using var barrier = new Barrier(2);
@@ -80,7 +81,8 @@ public sealed class PlaybackLifecycleSafetyTests
                 publisherReleased = barrier.SignalAndWait(TimeSpan.FromSeconds(10));
             }
         };
-        Task play = playback.PlayAsync(ConcurrencyTestData.CreatePlaybackSession("active", 0x41), new PlaybackSettings());
+        MacroSession session = ConcurrencyTestData.CreatePlaybackSession("active", 0x41);
+        Task play = playback.PlayAsync(session, new PlaybackSettings());
         await ConcurrencyTestData.CompleteWithinDeadline(adapter.Gate.Entered);
         Task first = Task.Run(() => playback.StopAsync());
         Task second = Task.CompletedTask;
@@ -102,7 +104,26 @@ public sealed class PlaybackLifecycleSafetyTests
         Assert.True(callerReleased);
         Assert.True(publisherReleased);
         Assert.True(secondWaited);
-        Assert.Single(adapter.AttemptedEvents);
+        Assert.True(adapter.PlaybackToken.IsCancellationRequested);
+        Assert.Collection(adapter.PlayedEvents,
+            down =>
+            {
+                Assert.Equal(session.Events[0].Id, down.Id);
+                Assert.Equal(MacroEventType.Keyboard, down.EventType);
+                Assert.Equal(KeyboardActionType.KeyDown, down.KeyboardActionType);
+                Assert.Equal(0x41, down.KeyCode);
+                Assert.Null(down.ScanCode);
+                Assert.False(down.IsExtendedKey);
+            },
+            release =>
+            {
+                Assert.Equal(MacroEventType.Keyboard, release.EventType);
+                Assert.Equal(KeyboardActionType.KeyUp, release.KeyboardActionType);
+                Assert.Equal(0x41, release.KeyCode);
+                Assert.Null(release.ScanCode);
+                Assert.False(release.IsExtendedKey);
+                Assert.Equal(MouseActionType.None, release.MouseActionType);
+            });
         Assert.Equal(AppState.Idle, state.CurrentState);
     }
 
@@ -166,5 +187,26 @@ public sealed class PlaybackLifecycleSafetyTests
         await playback.PlayAsync(ConcurrencyTestData.CreatePlaybackSession("next", 0x42), new PlaybackSettings());
         Assert.Equal(3, adapter.AttemptedEvents.Count);
         Assert.Equal(AppState.Idle, state.CurrentState);
+    }
+
+    private sealed class AcceptedGatedPlaybackAdapter : IInputPlaybackAdapter, ICursorPositionProvider
+    {
+        internal AsyncCallGate Gate { get; } = new();
+        internal List<MacroEvent> PlayedEvents { get; } = [];
+        internal CancellationToken PlaybackToken { get; private set; }
+
+        public Task<CursorPosition> GetCursorPositionAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new CursorPosition(0, 0));
+        }
+
+        public async Task PlayEventAsync(MacroEvent macroEvent, CancellationToken cancellationToken = default)
+        {
+            if (macroEvent.KeyboardActionType == KeyboardActionType.KeyDown) { PlaybackToken = cancellationToken; }
+            // A native send already accepted by the OS can finish after cancellation.
+            await Gate.EnterAsync(CancellationToken.None);
+            PlayedEvents.Add(macroEvent);
+        }
     }
 }

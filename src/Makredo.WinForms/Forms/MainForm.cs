@@ -497,6 +497,7 @@ public partial class MainForm : Form
         _hotkeyService.StopRequested -= OnStopRequested;
         _hotkeyService.HotkeySettingsRequested -= OnHotkeySettingsRequested;
         UnsubscribeFromServiceEvents();
+        await _macroPlaybackService.StopAsync();
 
         if (_hotkeyService.IsRegistered)
         {
@@ -508,13 +509,9 @@ public partial class MainForm : Form
             await _macroRecorderService.StopAsync();
         }
 
-        if (_macroPlaybackService.IsPlaying || _macroPlaybackService.IsPaused)
-        {
-            await _macroPlaybackService.StopAsync();
-        }
-
         await SavePlaybackSettingsAsync();
         await SaveHotkeySettingsAsync();
+        await _macroPlaybackService.DisposeAsync();
     }
 
     private void DisposeDynamicResources()

@@ -2,7 +2,7 @@ using Makredo.Domain.Models;
 
 namespace Makredo.Application.Abstractions;
 
-public interface IMacroPlaybackService
+public interface IMacroPlaybackService : IAsyncDisposable
 {
     bool IsPlaying { get; }
     bool IsPaused { get; }
