@@ -64,11 +64,11 @@ public sealed class HookThreadIntegrationTests(ITestOutputHelper output)
                 ProbeSnapshot warmupResult = await warmup.Completion.WaitAsync(InputDeadline, TimeProvider.System, deadline.Token);
                 output.WriteLine($"Unblocked warm-up: kind={(keyboard ? "keyboard" : "mouse")}, events={warmupResult.Events}, last latency={warmupResult.LastLatencyMs:F2}ms.");
 
-                var uiBlocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var uiBlocked = new ManualResetEvent(false);
                 ProbeCapture? blockedProbe = null;
-                Task sender = Task.Run(async () =>
+                Task sender = Task.Run(() =>
                 {
-                    await uiBlocked.Task.WaitAsync(deadline.Token);
+                    Assert.True(uiBlocked.WaitOne(InputDeadline), "The UI must enter its native blocking wait before input is sent.");
                     var probe = new ProbeCapture(installingThread, keyboard ? 1 : 2);
                     Volatile.Write(ref blockedProbe, probe);
                     Volatile.Write(ref activeProbe, probe);
@@ -80,9 +80,8 @@ public sealed class HookThreadIntegrationTests(ITestOutputHelper output)
                     using ITimer timer = TimeProvider.System.CreateTimer(
                         _ => unblock.Set(), null, UiBlockDuration, Timeout.InfiniteTimeSpan);
                     blockState.SetBlocked(true);
-                    uiBlocked.TrySetResult();
-                    // Deliberately stop this UI pump for the requested two-second regression window.
-                    bool released = unblock.WaitOne(TimeSpan.FromSeconds(10));
+                    // Signal the sender from inside a native, non-alertable wait; managed STA waits can pump hook messages.
+                    bool released = NativeInput.BlockUiWithoutPumping(uiBlocked, unblock);
                     blockState.SetBlocked(false);
                     Assert.True(released, "The independent timer must release the intentional UI blockage.");
                 }
@@ -213,6 +212,19 @@ public sealed class HookThreadIntegrationTests(ITestOutputHelper output)
     {
         internal const int VirtualKeyF24 = 0x87;
         private static readonly IntPtr InputMarker = new(0x4D4B5233);
+
+        internal static bool BlockUiWithoutPumping(WaitHandle entered, WaitHandle release)
+        {
+            HostedWindowsInputFactAttribute.RequireHostedWindowsCi();
+            return SignalObjectAndWait(entered.SafeWaitHandle, release.SafeWaitHandle, 10_000, false) == 0;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint SignalObjectAndWait(
+            Microsoft.Win32.SafeHandles.SafeWaitHandle signal,
+            Microsoft.Win32.SafeHandles.SafeWaitHandle wait,
+            uint milliseconds,
+            [MarshalAs(UnmanagedType.Bool)] bool alertable);
 
         internal static Point ReadCursor()
         {
