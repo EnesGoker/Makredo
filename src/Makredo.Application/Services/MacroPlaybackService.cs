@@ -14,7 +14,9 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
     private readonly object _syncRoot = new();
     private readonly SemaphoreSlim _eventExecutionGate = new(1, 1);
 
-    private bool _stopRequested;
+    private volatile bool _stopRequested;
+    private bool _playbackCompleting;
+    private TaskCompletionSource? _stopFlight;
     private CancellationTokenSource? _playbackCancellationTokenSource;
     private TaskCompletionSource<bool> _resumeSignal = CreateResumeSignal(signaled: true);
     private PlaybackCoordinateResolver? _activeCoordinateResolver;
@@ -71,42 +73,52 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
             return;
         }
 
-        if (!_applicationStateService.TryTransitionTo(AppState.Playing, AppState.Idle))
-        {
-            return;
-        }
-
-        PlaybackSettings effectiveSettings = NormalizeSettingsForExecution(settings);
-        PlaybackCoordinateResolver coordinateResolver =
-            PlaybackCoordinateResolver.Create(session, effectiveSettings);
-        CancellationTokenSource? playbackCancellationTokenSource = null;
+        CancellationTokenSource playbackCancellationTokenSource;
+        PlaybackCoordinateResolver? coordinateResolver = null;
+        bool stateClaimed = false;
         bool playbackStarted = false;
-        List<Exception> playbackErrors = [];
-        int repeatCount = effectiveSettings.LoopIndefinitely
-            ? int.MaxValue
-            : Math.Max(effectiveSettings.RepeatCount, 1);
-        int? totalLogicalEventCount = effectiveSettings.LoopIndefinitely
-            ? null
-            : session.Events.Count * repeatCount;
+
+        // Reserve the owner before publishing Playing; callbacks may request Stop.
+        lock (_syncRoot)
+        {
+            if (_playbackCancellationTokenSource is not null)
+            {
+                return;
+            }
+
+            playbackCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _playbackCancellationTokenSource = playbackCancellationTokenSource;
+            _stopRequested = false;
+            _playbackCompleting = false;
+            _stopFlight = null;
+            _resumeSignal = CreateResumeSignal(signaled: true);
+        }
 
         try
         {
+            PlaybackSettings effectiveSettings = NormalizeSettingsForExecution(settings);
+            coordinateResolver = PlaybackCoordinateResolver.Create(session, effectiveSettings);
+            List<Exception> playbackErrors = [];
+            int repeatCount = effectiveSettings.LoopIndefinitely
+                ? int.MaxValue
+                : Math.Max(effectiveSettings.RepeatCount, 1);
+            int? totalLogicalEventCount = effectiveSettings.LoopIndefinitely
+                ? null
+                : session.Events.Count * repeatCount;
+
             lock (_syncRoot)
             {
-                if (_playbackCancellationTokenSource is not null)
-                {
-                    _applicationStateService.TryTransitionTo(AppState.Idle, AppState.Playing);
-                    return;
-                }
-
-                _stopRequested = false;
-                _resumeSignal = CreateResumeSignal(signaled: true);
-                _playbackCancellationTokenSource =
-                    CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                playbackCancellationTokenSource = _playbackCancellationTokenSource;
                 _activeCoordinateResolver = coordinateResolver;
                 _playbackNextLogicalIndex = 0;
                 _playbackTotalLogicalEventCount = totalLogicalEventCount;
+            }
+
+            // If a subscriber throws, the valid transition has already committed.
+            stateClaimed = true;
+            if (!_applicationStateService.TryTransitionTo(AppState.Playing, AppState.Idle))
+            {
+                stateClaimed = false;
+                return;
             }
 
             playbackStarted = true;
@@ -223,7 +235,10 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         }
         catch (Exception ex)
         {
-            TrySetErrorState();
+            if (stateClaimed)
+            {
+                TrySetErrorState();
+            }
             _logger.Log(
                 AppLogLevel.Error,
                 nameof(MacroPlaybackService),
@@ -233,34 +248,48 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         }
         finally
         {
+            await CompletePlaybackAsync(playbackCancellationTokenSource, coordinateResolver, stateClaimed, playbackStarted);
+        }
+    }
+
+    private async Task CompletePlaybackAsync(
+        CancellationTokenSource owner,
+        PlaybackCoordinateResolver? coordinateResolver,
+        bool stateClaimed,
+        bool playbackStarted)
+    {
+        Task? stopRequest;
+        lock (_syncRoot)
+        {
+            _playbackCompleting = true;
+            stopRequest = _stopFlight?.Task;
+        }
+
+        try
+        {
+            // A stop request retains this owner until its state publication and Cancel finish.
+            if (stopRequest is not null)
+            {
+                try
+                {
+                    await stopRequest;
+                }
+                catch (Exception exception)
+                {
+                    _logger.Log(AppLogLevel.Error, nameof(MacroPlaybackService), "Oynatma durdurma isteği tamamlanamadı.", exception);
+                }
+            }
+
             lock (_syncRoot)
             {
-                if (ReferenceEquals(
-                        _playbackCancellationTokenSource,
-                        playbackCancellationTokenSource))
-                {
-                    _playbackCancellationTokenSource = null;
-                }
-
-                if (ReferenceEquals(_activeCoordinateResolver, coordinateResolver))
-                {
-                    _activeCoordinateResolver = null;
-                }
-
-                _stopRequested = false;
+                _activeCoordinateResolver = null;
                 _resumeSignal.TrySetResult(true);
                 _resumeSignal = CreateResumeSignal(signaled: true);
             }
+            ResetPlaybackRuntime();
+            coordinateResolver?.Dispose();
 
-            playbackCancellationTokenSource?.Dispose();
-            coordinateResolver.Dispose();
-
-            if (playbackStarted
-                || _applicationStateService.IsAny(
-                    AppState.Playing,
-                    AppState.Paused,
-                    AppState.Stopping,
-                    AppState.Error))
+            if (stateClaimed)
             {
                 _applicationStateService.TryTransitionTo(
                     AppState.Idle,
@@ -268,9 +297,23 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                     AppState.Paused,
                     AppState.Stopping,
                     AppState.Error);
-                ResetPlaybackRuntime();
+            }
+            if (playbackStarted)
+            {
                 SafeInvokePlaybackStopped();
             }
+        }
+        finally
+        {
+            // Keep the slot through final notifications so reentrant Play cannot be reset by this owner.
+            lock (_syncRoot)
+            {
+                _playbackCancellationTokenSource = null;
+                _stopFlight = null;
+                _stopRequested = false;
+                _playbackCompleting = false;
+            }
+            owner.Dispose();
         }
     }
 
@@ -341,35 +384,64 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        CancellationTokenSource? playbackCancellationTokenSource;
-        TaskCompletionSource<bool>? resumeSignal;
+        CancellationTokenSource playbackCancellationTokenSource;
+        TaskCompletionSource<bool> resumeSignal;
+        TaskCompletionSource flight;
 
         lock (_syncRoot)
         {
-            if (_playbackCancellationTokenSource is null
-                && !_applicationStateService.IsAny(AppState.Playing, AppState.Paused))
+            if (_playbackCancellationTokenSource is null)
             {
                 return Task.CompletedTask;
             }
 
+            if (_stopFlight is not null)
+            {
+                return _stopFlight.Task;
+            }
+
+            if (_playbackCompleting)
+            {
+                return Task.CompletedTask;
+            }
+
+            flight = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _stopFlight = flight;
             _stopRequested = true;
             playbackCancellationTokenSource = _playbackCancellationTokenSource;
             resumeSignal = _resumeSignal;
         }
 
-        _applicationStateService.TryTransitionTo(
-            AppState.Stopping,
-            AppState.Playing,
-            AppState.Paused);
+        Exception? failure = null;
+        try
+        {
+            _applicationStateService.TryTransitionTo(AppState.Stopping, AppState.Playing, AppState.Paused);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
 
-        resumeSignal?.TrySetResult(true);
-        playbackCancellationTokenSource?.Cancel();
-        _logger.Log(
-            AppLogLevel.Information,
-            nameof(MacroPlaybackService),
-            "Oynatma durdurma istegi alindi.");
+        try
+        {
+            resumeSignal.TrySetResult(true);
+            playbackCancellationTokenSource.Cancel();
+            _logger.Log(AppLogLevel.Information, nameof(MacroPlaybackService), "Oynatma durdurma istegi alindi.");
+        }
+        catch (Exception exception)
+        {
+            failure ??= exception;
+        }
 
-        return Task.CompletedTask;
+        if (failure is null)
+        {
+            flight.TrySetResult();
+        }
+        else
+        {
+            flight.TrySetException(failure);
+        }
+        return flight.Task;
     }
 
     public Task<MacroEvent> PlayEventAtAsync(

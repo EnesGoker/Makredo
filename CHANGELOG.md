@@ -18,6 +18,13 @@
 - Etkin olmayan, 24 saatten eski göç geçici klasörleri temizlenir;
   açık işlem kilidi bulunan ve yeni klasörler korunur.
 
+### Düzeltilenler
+
+- Eşzamanlı kayıt başlatma ve durdurma çağrıları oturumu yeniden oluşturmaz,
+  olay aboneliklerini yinelemez veya kaydedilmiş olayları silmez.
+- İkinci oynatma isteği etkin oynatmanın durumunu sıfırlamaz. Durum değişikliği
+  bildirimleri, geçişlerin gerçekleştiği sırayla yayımlanır.
+
 ### Changed
 
 - Renamed the application and installer to Makredo. Window, dialog, and report
@@ -33,3 +40,10 @@
   details are written to the temporary directory when possible.
 - Inactive migration staging copies older than 24 hours are reclaimed;
   active leased attempts and fresh directories are preserved.
+
+### Fixed
+
+- Overlapping recording start and stop calls no longer replace the session,
+  duplicate event subscriptions, or discard recorded events.
+- A second playback request no longer resets active playback state. State-change
+  notifications are published in transition commit order.

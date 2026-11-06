@@ -8,6 +8,9 @@ namespace Makredo.Application.Services;
 public sealed class MacroRecorderService : IMacroRecorderService
 {
     private readonly object _syncRoot = new();
+    private readonly object _lifecycleSyncRoot = new();
+    private Task? _startFlight;
+    private Task? _stopFlight;
     private readonly IKeyboardHookSource _keyboardHookSource;
     private readonly IMouseHookSource _mouseHookSource;
     private readonly IApplicationStateService _applicationStateService;
@@ -53,15 +56,129 @@ public sealed class MacroRecorderService : IMacroRecorderService
     public event Action<MacroEvent>? EventRecorded;
     public event Action<MacroSession>? RecordingStopped;
 
-    public async Task StartAsync(
+    public Task StartAsync(
         string? sessionName = null,
         CancellationToken cancellationToken = default)
     {
-        if (!_applicationStateService.TryTransitionTo(AppState.Recording, AppState.Idle))
+        TaskCompletionSource completion;
+        lock (_lifecycleSyncRoot)
         {
-            return;
+            if (_stopFlight is not null)
+            {
+                return Task.CompletedTask;
+            }
+
+            if (_startFlight is not null)
+            {
+                return _startFlight;
+            }
+
+            completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _startFlight = completion.Task;
         }
 
+        // Reserve before the core can publish state or call external hook implementations.
+        _ = CompleteStartFlightAsync(sessionName, completion, cancellationToken);
+        return completion.Task;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        TaskCompletionSource completion;
+        Task? pendingStart;
+        lock (_lifecycleSyncRoot)
+        {
+            if (_stopFlight is not null)
+            {
+                return _stopFlight;
+            }
+
+            pendingStart = _startFlight;
+            completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _stopFlight = completion.Task;
+        }
+
+        _ = CompleteStopFlightAsync(pendingStart, completion);
+        return completion.Task;
+    }
+
+    private async Task CompleteStartFlightAsync(
+        string? sessionName,
+        TaskCompletionSource completion,
+        CancellationToken cancellationToken)
+    {
+        Exception? failure = null;
+        try
+        {
+            await StartCoreAsync(sessionName, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        CompleteLifecycleFlight(completion, starting: true, failure);
+    }
+
+    private async Task CompleteStopFlightAsync(Task? pendingStart, TaskCompletionSource completion)
+    {
+        Exception? failure = null;
+        try
+        {
+            if (pendingStart is not null)
+            {
+                try
+                {
+                    await pendingStart;
+                }
+                catch (Exception)
+                {
+                    // Startup owns its rollback and failure; stop must still finish cleanup afterward.
+                }
+            }
+
+            await StopCoreAsync();
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        CompleteLifecycleFlight(completion, starting: false, failure);
+    }
+
+    private void CompleteLifecycleFlight(TaskCompletionSource completion, bool starting, Exception? failure)
+    {
+        lock (_lifecycleSyncRoot)
+        {
+            if (starting)
+            {
+                _startFlight = null;
+            }
+            else
+            {
+                _stopFlight = null;
+            }
+
+            if (failure is OperationCanceledException cancellation)
+            {
+                completion.TrySetCanceled(cancellation.CancellationToken);
+            }
+            else if (failure is not null)
+            {
+                completion.TrySetException(failure);
+            }
+            else
+            {
+                completion.TrySetResult();
+            }
+        }
+    }
+
+    private async Task StartCoreAsync(
+        string? sessionName = null,
+        CancellationToken cancellationToken = default)
+    {
         MacroSession session = new()
         {
             Name = string.IsNullOrWhiteSpace(sessionName)
@@ -69,20 +186,34 @@ public sealed class MacroRecorderService : IMacroRecorderService
                 : sessionName.Trim()
         };
 
-        lock (_syncRoot)
-        {
-            _currentSession = session;
-            ResetRecordingBuffersUnsafe(DateTime.UtcNow);
-        }
-
-        _keyboardHookSource.KeyActivityReceived += OnKeyboardActivityReceived;
-        _mouseHookSource.MouseActivityReceived += OnMouseActivityReceived;
-
+        bool claimedRecording = true;
+        bool sessionPrepared = false;
+        bool keyboardSubscribed = false;
+        bool mouseSubscribed = false;
         bool keyboardHookStarted = false;
         bool mouseHookStarted = false;
 
         try
         {
+            // StateChanged may reenter a lifecycle method or throw after committing Recording.
+            if (!_applicationStateService.TryTransitionTo(AppState.Recording, AppState.Idle))
+            {
+                claimedRecording = false;
+                return;
+            }
+
+            lock (_syncRoot)
+            {
+                _currentSession = session;
+                ResetRecordingBuffersUnsafe(DateTime.UtcNow);
+                sessionPrepared = true;
+            }
+
+            _keyboardHookSource.KeyActivityReceived += OnKeyboardActivityReceived;
+            keyboardSubscribed = true;
+            _mouseHookSource.MouseActivityReceived += OnMouseActivityReceived;
+            mouseSubscribed = true;
+
             await _keyboardHookSource.StartAsync(cancellationToken);
             keyboardHookStarted = true;
 
@@ -97,8 +228,20 @@ public sealed class MacroRecorderService : IMacroRecorderService
         }
         catch (Exception ex)
         {
-            _keyboardHookSource.KeyActivityReceived -= OnKeyboardActivityReceived;
-            _mouseHookSource.MouseActivityReceived -= OnMouseActivityReceived;
+            if (!claimedRecording)
+            {
+                throw;
+            }
+
+            if (keyboardSubscribed)
+            {
+                _keyboardHookSource.KeyActivityReceived -= OnKeyboardActivityReceived;
+            }
+
+            if (mouseSubscribed)
+            {
+                _mouseHookSource.MouseActivityReceived -= OnMouseActivityReceived;
+            }
 
             if (mouseHookStarted)
             {
@@ -110,13 +253,28 @@ public sealed class MacroRecorderService : IMacroRecorderService
                 await SafeStopAsync(_keyboardHookSource.StopAsync);
             }
 
-            lock (_syncRoot)
+            if (sessionPrepared)
             {
-                ResetRecordingBuffersUnsafe(DateTime.UtcNow);
-                _currentSession = null;
+                lock (_syncRoot)
+                {
+                    ResetRecordingBuffersUnsafe(DateTime.UtcNow);
+                    _currentSession = null;
+                }
             }
 
-            _applicationStateService.TryTransitionTo(AppState.Idle, AppState.Recording, AppState.Stopping);
+            try
+            {
+                _applicationStateService.TryTransitionTo(AppState.Idle, AppState.Recording, AppState.Stopping);
+            }
+            catch (Exception rollbackException)
+            {
+                _logger.Log(
+                    AppLogLevel.Error,
+                    nameof(MacroRecorderService),
+                    "Kayıt başlatma hatasından sonra durum bildirimi yayımlanamadı.",
+                    rollbackException);
+            }
+
             _logger.Log(
                 AppLogLevel.Error,
                 nameof(MacroRecorderService),
@@ -126,17 +284,28 @@ public sealed class MacroRecorderService : IMacroRecorderService
         }
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken = default)
+    private async Task StopCoreAsync()
     {
         MacroSession? completedSession = CurrentSession;
-
-        if (completedSession is null
-            || !_applicationStateService.TryTransitionTo(AppState.Stopping, AppState.Recording))
+        if (completedSession is null)
         {
             return;
         }
 
         List<Exception> errors = [];
+        try
+        {
+            if (!_applicationStateService.TryTransitionTo(AppState.Stopping, AppState.Recording))
+            {
+                return;
+            }
+        }
+        catch (Exception exception)
+        {
+            // A committed transition's observer failure must not leave hooks or buffers active.
+            errors.Add(exception);
+        }
+
         List<MacroEvent> eventsToPublish = [];
 
         _keyboardHookSource.KeyActivityReceived -= OnKeyboardActivityReceived;
