@@ -3,6 +3,7 @@ using System.Text;
 using Makredo.Application.Abstractions;
 using Makredo.Application.Filters;
 using Makredo.Application.Reporting;
+using Makredo.Application.Services;
 using Makredo.Domain;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
@@ -23,6 +24,7 @@ public partial class MainForm : Form
     private readonly IMacroPlaybackService _macroPlaybackService;
     private readonly IMacroOptimizationService _macroOptimizationService;
     private readonly IMacroStorageService _macroStorageService;
+    private readonly SessionDocument _document;
     private readonly IMacroLibraryService _macroLibraryService;
     private readonly IPlaybackSettingsStore _playbackSettingsStore;
     private readonly IHotkeySettingsStore _hotkeySettingsStore;
@@ -40,8 +42,8 @@ public partial class MainForm : Form
     private MacroPreviewMapDialog? _macroPreviewMapDialog;
     private AppShellLayoutProfile _layoutProfile;
 
-    private MacroSession? _activeSession;
-    private string? _lastSessionPath;
+    private Task _recordingRecovery = Task.CompletedTask;
+    private TaskCompletionSource? _sessionAction;
     private MacroLibraryUserState _macroLibraryUserState = new();
     private int _playedEventCount;
     private int _playedDurationMs;
@@ -61,6 +63,7 @@ public partial class MainForm : Form
         IMacroPlaybackService macroPlaybackService,
         IMacroOptimizationService macroOptimizationService,
         IMacroStorageService macroStorageService,
+        SessionDocument sessionDocument,
         IMacroLibraryService macroLibraryService,
         IPlaybackSettingsStore playbackSettingsStore,
         IHotkeySettingsStore hotkeySettingsStore,
@@ -74,6 +77,7 @@ public partial class MainForm : Form
         _macroPlaybackService = macroPlaybackService;
         _macroOptimizationService = macroOptimizationService;
         _macroStorageService = macroStorageService;
+        _document = sessionDocument;
         _macroLibraryService = macroLibraryService;
         _playbackSettingsStore = playbackSettingsStore;
         _hotkeySettingsStore = hotkeySettingsStore;
@@ -103,7 +107,7 @@ public partial class MainForm : Form
     private void MainForm_Load(object? sender, EventArgs e)
     {
         SubscribeToServiceEvents();
-        _ = ExecuteUiActionAsync(InitializeUiAsync, "Uygulama başlatma");
+        _ = ExecuteSessionActionAsync(InitializeUiAsync, "Uygulama başlatma");
     }
 
     private async Task InitializeUiAsync()
@@ -157,6 +161,15 @@ public partial class MainForm : Form
             _macroLibraryControl.SetItems([], null);
         }
 
+        try
+        {
+            await _document.OfferRecoveryAsync(ConfirmRecovery);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(AppLogLevel.Warning, nameof(MainForm), "Kurtarma dosyası işlenemedi.", ex);
+        }
+
         RefreshUiState();
         await InitializeHotkeysAsync();
     }
@@ -168,25 +181,59 @@ public partial class MainForm : Form
             return;
         }
 
-        if (_shutdownInProgress)
+        if (e.CloseReason == CloseReason.WindowsShutDown)
         {
-            e.Cancel = true;
+            // Windows reads the query result before any asynchronous continuation.
+            try
+            {
+                _document.SaveForShutdown(_macroRecorderService.CaptureRecordingSnapshot());
+            }
+            catch (Exception ex)
+            {
+                _logger.Log(AppLogLevel.Error, nameof(MainForm), "Windows kapanırken kurtarma dosyası yazılamadı.", ex);
+            }
+
+            e.Cancel = false;
             return;
         }
 
         e.Cancel = true;
-        _shutdownInProgress = true;
+        if (_shutdownInProgress)
+        {
+            return;
+        }
 
+        _shutdownInProgress = true;
         try
         {
+            if (_sessionAction is { } action)
+            {
+                await action.Task;
+            }
+
+            await _macroPlaybackService.StopAndWaitAsync();
+            await _macroRecorderService.StopAsync();
+            await _recordingRecovery;
+            if (!await CanLeaveSessionAsync(SessionTransition.Close))
+            {
+                return;
+            }
+
             await ShutdownAsync();
             _shutdownCompleted = true;
             Close();
         }
         catch (Exception ex)
         {
-            _shutdownInProgress = false;
             ShowError("Uygulama kapatılırken bir hata oluştu.", ex);
+        }
+        finally
+        {
+            if (!_shutdownCompleted)
+            {
+                _shutdownInProgress = false;
+                RefreshUiState();
+            }
         }
     }
 
@@ -213,7 +260,7 @@ public partial class MainForm : Form
 
     private void OnRecordToggleRequested()
     {
-        _ = ExecuteUiActionAsync(() => HandleRecordToggleCoreAsync(true), "Kaydı başlat/durdur");
+        _ = ExecuteSessionActionAsync(() => HandleRecordToggleCoreAsync(true), "Kaydı başlat/durdur");
     }
 
     private Task HandleRecordToggleAsync() => HandleRecordToggleCoreAsync(false);
@@ -231,7 +278,11 @@ public partial class MainForm : Form
             return;
         }
 
-        _lastSessionPath = null;
+        if (!await CanLeaveSessionAsync(SessionTransition.NewRecording))
+        {
+            return;
+        }
+
         await _macroRecorderService.StartAsync(null, fromHotkey ? WindowsHotkeyService.CapturePressedKeys(_hotkeyConfiguration.RecordToggleHotkey) : null);
         RefreshUiState();
     }
@@ -247,7 +298,7 @@ public partial class MainForm : Form
 
     private async Task HandlePlaybackToggleAsync()
     {
-        if (_shutdownInProgress || _macroRecorderService.IsRecording)
+        if (_shutdownInProgress || _sessionAction is not null || _macroRecorderService.IsRecording)
         {
             return;
         }
@@ -359,6 +410,11 @@ public partial class MainForm : Form
 
     private async Task ResetPlaybackCursorAsync()
     {
+        if (_sessionAction is not null || _shutdownInProgress)
+        {
+            return;
+        }
+
         if (Interlocked.Exchange(ref _playbackNavigationInProgress, 1) == 1)
         {
             return;
@@ -400,6 +456,11 @@ public partial class MainForm : Form
 
     private async Task StepPlaybackAsync(int stepDirection)
     {
+        if (_sessionAction is not null || _shutdownInProgress)
+        {
+            return;
+        }
+
         if (Interlocked.Exchange(ref _playbackNavigationInProgress, 1) == 1)
         {
             return;
@@ -485,29 +546,22 @@ public partial class MainForm : Form
 
     private async Task ShutdownAsync()
     {
-        _recordingEventRefreshThrottle?.Cancel();
-        _playbackTelemetryRefreshThrottle?.Cancel();
-        _playbackSelectionRefreshThrottle?.Cancel();
-
-        _hotkeyService.RecordToggleRequested -= OnRecordToggleRequested;
-        _hotkeyService.PlaybackToggleRequested -= OnPlaybackToggleRequested;
-        _hotkeyService.StopRequested -= OnStopRequested;
-        UnsubscribeFromServiceEvents();
-        await _macroPlaybackService.StopAsync();
+        await SavePlaybackSettingsAsync();
+        await SaveHotkeySettingsAsync();
 
         if (_hotkeyService.IsRegistered)
         {
             await _hotkeyService.UnregisterAsync();
         }
 
-        if (_macroRecorderService.IsRecording)
-        {
-            await _macroRecorderService.StopAsync();
-        }
-
-        await SavePlaybackSettingsAsync();
-        await SaveHotkeySettingsAsync();
         await _macroPlaybackService.DisposeAsync();
+        _recordingEventRefreshThrottle?.Cancel();
+        _playbackTelemetryRefreshThrottle?.Cancel();
+        _playbackSelectionRefreshThrottle?.Cancel();
+        _hotkeyService.RecordToggleRequested -= OnRecordToggleRequested;
+        _hotkeyService.PlaybackToggleRequested -= OnPlaybackToggleRequested;
+        _hotkeyService.StopRequested -= OnStopRequested;
+        UnsubscribeFromServiceEvents();
     }
 
     private void DisposeDynamicResources()
@@ -531,6 +585,33 @@ public partial class MainForm : Form
         catch (Exception ex)
         {
             ShowError($"{operationName} işlemi başarısız oldu.", ex);
+        }
+    }
+
+    private async Task ExecuteSessionActionAsync(Func<Task> action, string operationName)
+    {
+        if (_sessionAction is not null || _shutdownInProgress || _playbackNavigationInProgress != 0)
+        {
+            return;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _sessionAction = completion;
+        try
+        {
+            await ExecuteUiActionAsync(async () =>
+            {
+                await _recordingRecovery;
+                if (!_shutdownInProgress)
+                {
+                    await action();
+                }
+            }, operationName);
+        }
+        finally
+        {
+            _sessionAction = null;
+            completion.TrySetResult();
         }
     }
 
@@ -570,8 +651,6 @@ public partial class MainForm : Form
         _macroPlaybackService.PlaybackResumed += OnPlaybackStateChanged;
         _macroPlaybackService.PlaybackStopped += OnPlaybackStopped;
         _macroPlaybackService.EventPlayed += OnPlaybackEventPlayed;
-
-        _activeSession = _macroRecorderService.CurrentSession;
     }
 
     private void UnsubscribeFromServiceEvents()
@@ -595,11 +674,17 @@ public partial class MainForm : Form
 
     private void OnRecordingStarted()
     {
-        _activeSession = _macroRecorderService.CurrentSession;
-        _lastSessionPath = null;
-        _playedEventCount = 0;
-        _playedDurationMs = 0;
-        _activePlaybackSourceIndex = null;
+        if (InvokeRequired)
+        {
+            TryBeginInvokeOnUiThread(OnRecordingStarted);
+            return;
+        }
+
+        if (_macroRecorderService.CurrentSession is { } session)
+        {
+            _document.StartRecording(session);
+        }
+        ResetSessionPlaybackPosition();
         RequestUiRefresh();
     }
 
@@ -611,9 +696,27 @@ public partial class MainForm : Form
 
     private void OnRecordingStopped(MacroSession session)
     {
-        _activeSession = session;
+        if (InvokeRequired)
+        {
+            TryBeginInvokeOnUiThread(() => OnRecordingStopped(session));
+            return;
+        }
+
+        _recordingRecovery = TryWriteRecoveryAsync(_document.CompleteRecordingAsync(session));
         _recordingEventRefreshThrottle?.Cancel();
         RequestUiRefresh();
+    }
+
+    private async Task TryWriteRecoveryAsync(Task checkpoint)
+    {
+        try
+        {
+            await checkpoint;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(AppLogLevel.Error, nameof(MainForm), "Oturumun kurtarma dosyası yazılamadı.", ex);
+        }
     }
 
     private void OnPlaybackStarted()
@@ -691,7 +794,7 @@ public partial class MainForm : Form
     {
         _ = sender;
         _ = e;
-        _ = ExecuteUiActionAsync(HandleRecordToggleAsync, "Kaydı başlat/durdur");
+        _ = ExecuteSessionActionAsync(HandleRecordToggleAsync, "Kaydı başlat/durdur");
     }
 
     private void playbackToggleButton_Click(object? sender, EventArgs e)
@@ -733,35 +836,35 @@ public partial class MainForm : Form
     {
         _ = sender;
         _ = e;
-        _ = ExecuteUiActionAsync(SaveJsonAsync, "JSON kaydetme");
+        _ = ExecuteSessionActionAsync(SaveJsonAsync, "JSON kaydetme");
     }
 
     private void saveLibraryButton_Click(object? sender, EventArgs e)
     {
         _ = sender;
         _ = e;
-        _ = ExecuteUiActionAsync(SaveToLibraryAsync, "Makro kütüphanesine kaydetme");
+        _ = ExecuteSessionActionAsync(SaveToLibraryAsync, "Makro kütüphanesine kaydetme");
     }
 
     private void loadJsonButton_Click(object? sender, EventArgs e)
     {
         _ = sender;
         _ = e;
-        _ = ExecuteUiActionAsync(LoadJsonAsync, "JSON yükleme");
+        _ = ExecuteSessionActionAsync(LoadJsonAsync, "JSON yükleme");
     }
 
     private void importLibraryMacroButton_Click(object? sender, EventArgs e)
     {
         _ = sender;
         _ = e;
-        _ = ExecuteUiActionAsync(ImportLibraryMacroAsync, "Makro kütüphanesine içe aktarma");
+        _ = ExecuteSessionActionAsync(ImportLibraryMacroAsync, "Makro kütüphanesine içe aktarma");
     }
 
     private void saveXmlButton_Click(object? sender, EventArgs e)
     {
         _ = sender;
         _ = e;
-        _ = ExecuteUiActionAsync(SaveXmlAsync, "XML kaydetme");
+        _ = ExecuteSessionActionAsync(SaveXmlAsync, "XML kaydetme");
     }
 
     private void saveHtmlReportButton_Click(object? sender, EventArgs e)
@@ -782,14 +885,14 @@ public partial class MainForm : Form
     {
         _ = sender;
         _ = e;
-        _ = ExecuteUiActionAsync(LoadXmlAsync, "XML yükleme");
+        _ = ExecuteSessionActionAsync(LoadXmlAsync, "XML yükleme");
     }
 
     private void clearSessionButton_Click(object? sender, EventArgs e)
     {
         _ = sender;
         _ = e;
-        _ = ExecuteUiActionAsync(ClearSessionAsync, "Oturum temizleme");
+        _ = ExecuteSessionActionAsync(ClearSessionAsync, "Oturum temizleme");
     }
 
     private void editHotkeysButton_Click(object? sender, EventArgs e)
@@ -802,19 +905,19 @@ public partial class MainForm : Form
     private void macroLibraryControl_LoadRequested(object? sender, MacroLibraryItemEventArgs e)
     {
         _ = sender;
-        _ = ExecuteUiActionAsync(() => LoadLibraryMacroAsync(e.Item), "Makro kütüphanesi yükleme");
+        _ = ExecuteSessionActionAsync(() => LoadLibraryMacroAsync(e.Item), "Makro kütüphanesi yükleme");
     }
 
     private void macroLibraryControl_RenameRequested(object? sender, MacroLibraryItemEventArgs e)
     {
         _ = sender;
-        _ = ExecuteUiActionAsync(() => RenameLibraryMacroAsync(e.Item), "Makro kütüphanesi isim düzenleme");
+        _ = ExecuteSessionActionAsync(() => RenameLibraryMacroAsync(e.Item), "Makro kütüphanesi isim düzenleme");
     }
 
     private void macroLibraryControl_DeleteRequested(object? sender, MacroLibraryItemEventArgs e)
     {
         _ = sender;
-        _ = ExecuteUiActionAsync(() => DeleteLibraryMacroAsync(e.Item), "Makro kütüphanesi silme");
+        _ = ExecuteSessionActionAsync(() => DeleteLibraryMacroAsync(e.Item), "Makro kütüphanesi silme");
     }
 
     private void macroLibraryControl_FavoriteToggled(object? sender, MacroLibraryItemEventArgs e)
@@ -826,13 +929,13 @@ public partial class MainForm : Form
     private void macroLibraryControl_OptimizeRequested(object? sender, MacroLibraryItemEventArgs e)
     {
         _ = sender;
-        _ = ExecuteUiActionAsync(() => OptimizeLibraryMacroAsync(e.Item), "Makro kütüphanesi optimizasyonu");
+        _ = ExecuteSessionActionAsync(() => OptimizeLibraryMacroAsync(e.Item), "Makro kütüphanesi optimizasyonu");
     }
 
     private void eventListControl_EventEditRequested(object? sender, EventEditRequestedEventArgs e)
     {
         _ = sender;
-        _ = ExecuteUiActionAsync(() => EditEventAsync(e), "Olay düzenleme");
+        _ = ExecuteSessionActionAsync(() => EditEventAsync(e), "Olay düzenleme");
     }
 
     private void preserveTimingCheckBox_CheckedChanged(object? sender, EventArgs e)
@@ -891,7 +994,7 @@ public partial class MainForm : Form
         }
 
         await _macroStorageService.SaveAsJsonAsync(session, dialog.FileName);
-        _lastSessionPath = dialog.FileName;
+        await _document.MarkSavedAsync(dialog.FileName);
         await RefreshMacroLibraryAsync();
         RefreshUiState();
     }
@@ -924,7 +1027,7 @@ public partial class MainForm : Form
             throw;
         }
 
-        _lastSessionPath = filePath;
+        await _document.MarkSavedAsync(filePath);
         MarkLibraryFileUsed(filePath);
         await TrySaveMacroLibraryUserStateAsync("Makro kütüphanesi son kullanılan kaydetme");
         await RefreshMacroLibraryAsync();
@@ -973,7 +1076,7 @@ public partial class MainForm : Form
         return entries.Any(entry =>
             entry.Format == format
             && string.Equals(entry.Name, macroName, StringComparison.OrdinalIgnoreCase)
-            && !IsSamePath(_lastSessionPath, entry.FilePath));
+            && !IsSamePath(_document.FilePath, entry.FilePath));
     }
 
     private async Task LoadJsonAsync()
@@ -991,8 +1094,13 @@ public partial class MainForm : Form
             return;
         }
 
+        if (!await CanLeaveSessionAsync(SessionTransition.Load))
+        {
+            return;
+        }
+
         MacroSession session = await _macroStorageService.LoadFromJsonAsync(dialog.FileName);
-        AdoptLoadedSession(session, dialog.FileName);
+        await AdoptLoadedSessionAsync(session, dialog.FileName);
         await RefreshMacroLibraryAsync();
     }
 
@@ -1011,10 +1119,15 @@ public partial class MainForm : Form
             return;
         }
 
+        if (!await CanLeaveSessionAsync(SessionTransition.Load))
+        {
+            return;
+        }
+
         string importedFilePath = await _macroLibraryService.ImportAsync(dialog.FileName);
         MacroSession session = await _macroLibraryService.LoadAsync(importedFilePath);
 
-        AdoptLoadedSession(session, importedFilePath);
+        await AdoptLoadedSessionAsync(session, importedFilePath);
         MarkLibraryFileUsed(importedFilePath);
         await TrySaveMacroLibraryUserStateAsync("Makro kütüphanesi son kullanılan kaydetme");
         await RefreshMacroLibraryAsync();
@@ -1040,7 +1153,7 @@ public partial class MainForm : Form
         }
 
         await _macroStorageService.SaveAsXmlAsync(session, dialog.FileName);
-        _lastSessionPath = dialog.FileName;
+        await _document.MarkSavedAsync(dialog.FileName);
         await RefreshMacroLibraryAsync();
         RefreshUiState();
     }
@@ -1086,7 +1199,7 @@ public partial class MainForm : Form
             return;
         }
 
-        string reportContent = buildReport(session, _lastSessionPath);
+        string reportContent = buildReport(session, _document.FilePath);
         await File.WriteAllTextAsync(dialog.FileName, reportContent, Encoding.UTF8);
     }
 
@@ -1105,8 +1218,13 @@ public partial class MainForm : Form
             return;
         }
 
+        if (!await CanLeaveSessionAsync(SessionTransition.Load))
+        {
+            return;
+        }
+
         MacroSession session = await _macroStorageService.LoadFromXmlAsync(dialog.FileName);
-        AdoptLoadedSession(session, dialog.FileName);
+        await AdoptLoadedSessionAsync(session, dialog.FileName);
         await RefreshMacroLibraryAsync();
     }
 
@@ -1114,12 +1232,14 @@ public partial class MainForm : Form
     {
         EnsureSessionMutationAllowed();
 
+        if (!await CanLeaveSessionAsync(SessionTransition.Clear))
+        {
+            return;
+        }
+
         _macroRecorderService.Clear();
-        _activeSession = null;
-        _lastSessionPath = null;
-        _playedEventCount = 0;
-        _playedDurationMs = 0;
-        _activePlaybackSourceIndex = null;
+        _document.Clear();
+        ResetSessionPlaybackPosition();
         await RefreshMacroLibraryAsync();
         RefreshUiState();
     }
@@ -1129,8 +1249,13 @@ public partial class MainForm : Form
         ArgumentNullException.ThrowIfNull(item);
         EnsureSessionMutationAllowed();
 
+        if (!await CanLeaveSessionAsync(SessionTransition.Load))
+        {
+            return;
+        }
+
         MacroSession session = await _macroLibraryService.LoadAsync(item.FilePath);
-        AdoptLoadedSession(session, item.FilePath);
+        await AdoptLoadedSessionAsync(session, item.FilePath);
         MarkLibraryFileUsed(item.FilePath);
         await TrySaveMacroLibraryUserStateAsync("Makro kütüphanesi son kullanılan kaydetme");
         await RefreshMacroLibraryAsync();
@@ -1153,14 +1278,9 @@ public partial class MainForm : Form
             previousFilePath,
             dialog.MacroName);
 
-        if (IsSamePath(_lastSessionPath, previousFilePath))
+        if (IsSamePath(_document.FilePath, previousFilePath))
         {
-            _lastSessionPath = renamedFilePath;
-
-            if (_activeSession is not null)
-            {
-                _activeSession.Name = Path.GetFileNameWithoutExtension(renamedFilePath);
-            }
+            await TryWriteRecoveryAsync(_document.RenameAsync(dialog.MacroName, renamedFilePath));
         }
 
         MoveLibraryStatePath(previousFilePath, renamedFilePath);
@@ -1181,9 +1301,9 @@ public partial class MainForm : Form
 
         await _macroLibraryService.DeleteAsync(item.FilePath);
 
-        if (IsSamePath(_lastSessionPath, item.FilePath))
+        if (IsSamePath(_document.FilePath, item.FilePath))
         {
-            _lastSessionPath = null;
+            _document.DetachFile();
         }
 
         RemoveLibraryStatePath(item.FilePath);
@@ -1207,7 +1327,7 @@ public partial class MainForm : Form
         await RefreshMacroLibraryAsync();
     }
 
-    private Task EditEventAsync(EventEditRequestedEventArgs editRequest)
+    private async Task EditEventAsync(EventEditRequestedEventArgs editRequest)
     {
         ArgumentNullException.ThrowIfNull(editRequest);
         EnsureSessionMutationAllowed();
@@ -1225,19 +1345,12 @@ public partial class MainForm : Form
 
         if (ModalDialogOverlay.ShowDialog(this, dialog) != DialogResult.OK)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        macroEvent.DelayMs = dialog.EditResult.DelayMs;
-
-        if (dialog.EditResult.X.HasValue && dialog.EditResult.Y.HasValue)
-        {
-            macroEvent.X = dialog.EditResult.X;
-            macroEvent.Y = dialog.EditResult.Y;
-        }
-
+        await TryWriteRecoveryAsync(_document.EditEventAsync(
+            editRequest.EventIndex, dialog.EditResult.DelayMs, dialog.EditResult.X, dialog.EditResult.Y));
         RefreshUiState(forceEventListReload: true);
-        return Task.CompletedTask;
     }
 
     private async Task OptimizeLibraryMacroAsync(MacroLibraryEntry item)
@@ -1245,7 +1358,10 @@ public partial class MainForm : Form
         ArgumentNullException.ThrowIfNull(item);
         EnsureSessionMutationAllowed();
 
-        MacroSession session = await _macroLibraryService.LoadAsync(item.FilePath);
+        bool optimizedActiveSession = IsSamePath(_document.FilePath, item.FilePath) && _document.Session is not null;
+        MacroSession session = optimizedActiveSession
+            ? _document.Session!
+            : await _macroLibraryService.LoadAsync(item.FilePath);
         MacroOptimizationPreview preview = _macroOptimizationService.Preview(session);
 
         if (!preview.HasChanges)
@@ -1261,17 +1377,15 @@ public partial class MainForm : Form
             return;
         }
 
-        session.ReplaceEvents(preview.OptimizedEvents);
-        await SaveOptimizedLibraryMacroAsync(session, item);
-
-        bool optimizedActiveSession = IsSamePath(_lastSessionPath, item.FilePath);
-
         if (optimizedActiveSession)
         {
-            _activeSession = session;
-            _playedEventCount = 0;
-            _playedDurationMs = 0;
-            _activePlaybackSourceIndex = null;
+            await TryWriteRecoveryAsync(_document.OptimizeAsync(preview.OptimizedEvents));
+            ResetSessionPlaybackPosition();
+        }
+        else
+        {
+            session.ReplaceEvents(preview.OptimizedEvents);
+            await SaveOptimizedLibraryMacroAsync(session, item);
         }
 
         MarkLibraryFileUsed(item.FilePath);
@@ -1300,7 +1414,7 @@ public partial class MainForm : Form
                 "Makro kütüphanesi kullanıcı tercihleri temizleme");
         }
 
-        _macroLibraryControl.SetItems(BuildMacroLibraryViewItems(entries), _lastSessionPath);
+        _macroLibraryControl.SetItems(BuildMacroLibraryViewItems(entries), _document.FilePath);
     }
 
     private async Task LoadMacroLibraryUserStateAsync()
@@ -1480,15 +1594,82 @@ public partial class MainForm : Form
         };
     }
 
-    private void AdoptLoadedSession(MacroSession session, string filePath)
+    private async Task AdoptLoadedSessionAsync(MacroSession session, string filePath)
     {
-        _activeSession = session;
-        _lastSessionPath = filePath;
+        await _document.LoadAsync(session, filePath);
+        ResetSessionPlaybackPosition();
+        RefreshUiState();
+    }
+
+    private void ResetSessionPlaybackPosition()
+    {
         _playedEventCount = 0;
         _playedDurationMs = 0;
         _activePlaybackSourceIndex = null;
-        RefreshUiState();
     }
+
+    private Task<bool> CanLeaveSessionAsync(SessionTransition transition) =>
+        _document.CanLeaveAsync(transition, AskAboutUnsavedSession, SaveBeforeLeavingAsync);
+
+    private UnsavedSessionChoice AskAboutUnsavedSession(SessionTransition transition)
+    {
+        string message = transition switch
+        {
+            SessionTransition.Close => "Kapatmadan önce makro oturumunu kaydetmek ister misiniz?",
+            SessionTransition.NewRecording => "Yeni kayıt başlatmadan önce açık makro oturumunu kaydetmek ister misiniz?",
+            SessionTransition.Load => "Başka bir makro yüklemeden önce açık oturumu kaydetmek ister misiniz?",
+            _ => "Oturumu temizlemeden önce makroyu kaydetmek ister misiniz?"
+        };
+        const string caption = "Kaydedilmemiş değişiklikler";
+        using var dialog = ThemedMessageDialog.CreateSaveChanges($"{caption}\n\n{message}", caption);
+        return ModalDialogOverlay.ShowDialog(this, dialog) switch
+        {
+            DialogResult.Yes => UnsavedSessionChoice.Save,
+            DialogResult.No => UnsavedSessionChoice.Discard,
+            _ => UnsavedSessionChoice.Cancel
+        };
+    }
+
+    private async Task<string?> SaveBeforeLeavingAsync(MacroSession session, CancellationToken cancellationToken)
+    {
+        string? filePath = _document.FilePath;
+        if (filePath is null)
+        {
+            using var dialog = new SaveFileDialog
+            {
+                Filter = "JSON makro (*.json)|*.json|XML makro (*.xml)|*.xml",
+                FileName = BuildDefaultFileName(session.Name, ".json"),
+                AddExtension = true,
+                DefaultExt = "json",
+                RestoreDirectory = true
+            };
+            if (ModalDialogOverlay.ShowDialog(this, dialog) != DialogResult.OK)
+            {
+                return null;
+            }
+
+            filePath = dialog.FileName;
+        }
+
+        if (string.Equals(Path.GetExtension(filePath), ".xml", StringComparison.OrdinalIgnoreCase))
+        {
+            await _macroStorageService.SaveAsXmlAsync(session, filePath, cancellationToken);
+        }
+        else
+        {
+            await _macroStorageService.SaveAsJsonAsync(session, filePath, cancellationToken);
+        }
+
+        return filePath;
+    }
+
+    private bool ConfirmRecovery(MacroSession session) =>
+        ModalDialogOverlay.ShowMessage(
+            this,
+            $"Makro oturumu kurtarıldı\n\n“{session.Name}” adlı kaydedilmemiş oturumu geri yüklemek ister misiniz?",
+            "Oturum kurtarma",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question) == DialogResult.Yes;
 
     private async Task LoadPlaybackSettingsAsync()
     {
@@ -1529,15 +1710,7 @@ public partial class MainForm : Form
         }
     }
 
-    private MacroSession? GetSessionForPlayback()
-    {
-        if (_macroRecorderService.IsRecording)
-        {
-            return _macroRecorderService.CurrentSession;
-        }
-
-        return _activeSession ?? _macroRecorderService.CurrentSession;
-    }
+    private MacroSession? GetSessionForPlayback() => _document.Session;
 
     private MacroSession GetRequiredSession()
     {
@@ -1643,9 +1816,9 @@ public partial class MainForm : Form
             displayedSession?.Name ?? "Oturum yok",
             displayedSession?.Events.Count ?? 0,
             displayedSession?.TotalDurationMs ?? 0,
-            string.IsNullOrWhiteSpace(_lastSessionPath)
+            string.IsNullOrWhiteSpace(_document.FilePath)
                 ? "Kaydedilmedi"
-                : Path.GetFileName(_lastSessionPath));
+                : Path.GetFileName(_document.FilePath));
     }
 
     private void UpdateMacroPreviewMapDialog(
@@ -2412,9 +2585,9 @@ public partial class MainForm : Form
 
     private MacroLibraryFileFormat ResolveCurrentLibrarySaveFormat()
     {
-        string extension = string.IsNullOrWhiteSpace(_lastSessionPath)
+        string extension = string.IsNullOrWhiteSpace(_document.FilePath)
             ? string.Empty
-            : Path.GetExtension(_lastSessionPath);
+            : Path.GetExtension(_document.FilePath);
 
         return extension.Equals(".xml", StringComparison.OrdinalIgnoreCase)
             ? MacroLibraryFileFormat.Xml

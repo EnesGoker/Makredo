@@ -35,6 +35,14 @@ public sealed class JsonMacroStorageService : IJsonMacroStorageService
             cancellationToken);
     }
 
+    internal static void WriteTemporarySessionFile(MacroSession session, string temporaryFilePath)
+    {
+        MacroSessionPersistenceContract.PrepareForWrite(session);
+        AtomicFileWriteHelper.WriteTemporaryFile(
+            temporaryFilePath,
+            stream => JsonSerializer.Serialize(stream, session, JsonOptions));
+    }
+
     public async Task<MacroSession> LoadAsync(
         string filePath,
         CancellationToken cancellationToken = default)

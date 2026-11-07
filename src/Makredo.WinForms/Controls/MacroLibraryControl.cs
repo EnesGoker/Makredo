@@ -47,6 +47,8 @@ internal sealed class MacroLibraryControl : UserControl
     private IReadOnlyList<MacroLibraryViewItem> _items = [];
     private MacroLibraryFilterKind _selectedFilterKind = MacroLibraryFilterKind.All;
     private string? _selectedFilePath;
+    private string? _activeSessionFilePath;
+    private bool _rebuildingRows;
 
     public event EventHandler? AddRequested;
     public event EventHandler<MacroLibraryItemEventArgs>? LoadRequested;
@@ -107,7 +109,13 @@ internal sealed class MacroLibraryControl : UserControl
         ArgumentNullException.ThrowIfNull(items);
 
         _items = items;
-        _selectedFilePath = selectedFilePath;
+        if (!string.Equals(_activeSessionFilePath, selectedFilePath, StringComparison.OrdinalIgnoreCase)
+            || !items.Any(item => IsSamePath(item.Entry.FilePath, _selectedFilePath)))
+        {
+            _selectedFilePath = selectedFilePath;
+        }
+
+        _activeSessionFilePath = selectedFilePath;
         ApplyFilter();
     }
 
@@ -162,6 +170,9 @@ internal sealed class MacroLibraryControl : UserControl
         MacroLibraryViewItem[] filteredItems =
             MacroLibraryFilterEngine.Apply(_items, searchTerm, _selectedFilterKind);
 
+        bool restoreRowFocus = _macroListPanel.ContainsFocus;
+        MacroLibraryRow? selectedRow = null;
+        _rebuildingRows = true;
         _macroListPanel.SuspendLayout();
 
         try
@@ -181,6 +192,12 @@ internal sealed class MacroLibraryControl : UserControl
                 {
                     bool isSelected = IsSamePath(item.Entry.FilePath, _selectedFilePath);
                     var row = new MacroLibraryRow(item, isSelected);
+                    if (isSelected)
+                    {
+                        selectedRow = row;
+                    }
+
+                    row.SelectionRequested += (_, _) => SelectRow(row, item.Entry.FilePath);
                     row.Activated += (_, _) => LoadRequested?.Invoke(this, new MacroLibraryItemEventArgs(item));
                     row.RenameRequested += (_, _) => RenameRequested?.Invoke(this, new MacroLibraryItemEventArgs(item));
                     row.DeleteRequested += (_, _) => DeleteRequested?.Invoke(this, new MacroLibraryItemEventArgs(item));
@@ -194,6 +211,7 @@ internal sealed class MacroLibraryControl : UserControl
         finally
         {
             _macroListPanel.ResumeLayout(performLayout: false);
+            _rebuildingRows = false;
         }
 
         int totalEventCount = filteredItems.Sum(item => Math.Max(0, item.Entry.EventCount));
@@ -202,6 +220,37 @@ internal sealed class MacroLibraryControl : UserControl
         ResizeLibraryRows();
         UpdateListScrollLayout();
         _macroListPanel.PerformLayout();
+        if (restoreRowFocus)
+        {
+            selectedRow?.Focus();
+        }
+    }
+
+    private void SelectRow(MacroLibraryRow row, string filePath)
+    {
+        if (_rebuildingRows)
+        {
+            return;
+        }
+
+        if (!IsSamePath(filePath, _selectedFilePath))
+        {
+            _selectedFilePath = filePath;
+            foreach (MacroLibraryRow candidate in _macroListPanel.Controls.OfType<MacroLibraryRow>())
+            {
+                candidate.SetSelected(ReferenceEquals(candidate, row));
+            }
+        }
+
+        int viewportHeight = _listViewportPanel.ClientSize.Height;
+        if (row.Bottom <= _listScrollBar.Value)
+        {
+            _listScrollBar.Value = row.Top;
+        }
+        else if (viewportHeight > 0 && row.Top >= _listScrollBar.Value + viewportHeight)
+        {
+            _listScrollBar.Value = row.Bottom - viewportHeight;
+        }
     }
 
     private void ClearMacroListPanel()
@@ -1125,8 +1174,9 @@ internal sealed class MacroLibraryControl : UserControl
     private sealed class MacroLibraryRow : RoundedPanel
     {
         private readonly MacroLibraryViewItem _item;
-        private readonly bool _isSelected;
+        private bool _isSelected;
 
+        public event EventHandler? SelectionRequested;
         public event EventHandler? Activated;
         public event EventHandler? RenameRequested;
         public event EventHandler? DeleteRequested;
@@ -1136,7 +1186,10 @@ internal sealed class MacroLibraryControl : UserControl
         public MacroLibraryRow(MacroLibraryViewItem item, bool isSelected)
         {
             _item = item;
-            _isSelected = isSelected;
+            SetStyle(ControlStyles.Selectable, true);
+            TabStop = true;
+            AccessibleName = item.Entry.Name;
+            AccessibleRole = AccessibleRole.ListItem;
             Height = DesignTokens.Scale(68);
             Width = 320;
             Margin = new Padding(0, 0, 0, DesignTokens.Scale(8));
@@ -1145,16 +1198,47 @@ internal sealed class MacroLibraryControl : UserControl
                 DesignTokens.Scale(9),
                 DesignTokens.Scale(10),
                 DesignTokens.Scale(9));
-            BackColor = isSelected
-                ? Color.FromArgb(20, 56, 98)
-                : DesignTokens.SurfaceInset;
-            BorderColor = isSelected
-                ? Color.FromArgb(125, DesignTokens.Accent)
-                : DesignTokens.BorderSoft;
+            BackColor = DesignTokens.SurfaceInset;
+            BorderColor = DesignTokens.BorderSoft;
+            SetSelected(isSelected);
 
             BuildRow();
             BuildContextMenu();
-            WireActivation(this);
+            WireInteraction(this);
+        }
+
+        public void SetSelected(bool isSelected)
+        {
+            if (_isSelected == isSelected)
+            {
+                return;
+            }
+
+            _isSelected = isSelected;
+            BackColor = isSelected ? Color.FromArgb(20, 56, 98) : DesignTokens.SurfaceInset;
+            BorderColor = isSelected ? Color.FromArgb(125, DesignTokens.Accent) : DesignTokens.BorderSoft;
+            Invalidate(invalidateChildren: true);
+        }
+
+        protected override void OnEnter(EventArgs e)
+        {
+            base.OnEnter(e);
+            SelectionRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected override bool IsInputKey(Keys keyData)
+            => keyData == Keys.Enter || base.IsInputKey(keyData);
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            if (e.KeyData == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                Activated?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
+            base.OnKeyDown(e);
         }
 
         protected override void OnParentChanged(EventArgs e)
@@ -1307,15 +1391,35 @@ internal sealed class MacroLibraryControl : UserControl
             base.Dispose(disposing);
         }
 
-        private void WireActivation(Control control)
+        private void WireInteraction(Control control)
         {
-            control.Click += (_, _) => Activated?.Invoke(this, EventArgs.Empty);
+            control.MouseClick += (_, e) =>
+            {
+                if (e.Button == MouseButtons.Left)
+                {
+                    SelectFromMouse();
+                }
+            };
+            control.MouseDoubleClick += (_, e) =>
+            {
+                if (e.Button == MouseButtons.Left)
+                {
+                    SelectFromMouse();
+                    Activated?.Invoke(this, EventArgs.Empty);
+                }
+            };
             control.ContextMenuStrip = ContextMenuStrip;
 
             foreach (Control child in control.Controls)
             {
-                WireActivation(child);
+                WireInteraction(child);
             }
+        }
+
+        private void SelectFromMouse()
+        {
+            Focus();
+            SelectionRequested?.Invoke(this, EventArgs.Empty);
         }
 
         private static string FormatLastModified(DateTime lastModifiedUtc)

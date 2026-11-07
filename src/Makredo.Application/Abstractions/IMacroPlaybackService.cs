@@ -18,6 +18,8 @@ public interface IMacroPlaybackService : IAsyncDisposable
 
     Task StopAsync(CancellationToken cancellationToken = default);
 
+    Task StopAndWaitAsync(CancellationToken cancellationToken = default);
+
     Task<MacroEvent> PlayEventAtAsync(
         MacroSession session,
         PlaybackSettings settings,

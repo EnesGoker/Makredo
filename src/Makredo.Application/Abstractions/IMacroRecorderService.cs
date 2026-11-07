@@ -15,6 +15,8 @@ public interface IMacroRecorderService
     /// </summary>
     MacroSession? CurrentSession { get; }
 
+    MacroSession? CaptureRecordingSnapshot();
+
     Task StartAsync(
         string? sessionName = null,
         CancellationToken cancellationToken = default);
