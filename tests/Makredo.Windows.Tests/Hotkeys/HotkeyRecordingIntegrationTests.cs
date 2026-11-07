@@ -40,6 +40,17 @@ public sealed class HotkeyRecordingIntegrationTests
         await service.RegisterAsync();
         Assert.Empty(service.RegistrationFailures);
         Assert.False(service.IsHotkeyRegistered(configuration.HotkeySettingsHotkey));
+        var originalCursor = HookThreadIntegrationTests.NativeInput.ReadCursor();
+        var moved = new TaskCompletionSource<MouseActivityInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void ObserveMouse(MouseActivityInfo activity)
+        {
+            if (activity is { ActionType: MouseActionType.Move, IsInjected: true, ExtraInfo: HookThreadIntegrationTests.NativeInput.InputMarker })
+            {
+                moved.TrySetResult(activity);
+            }
+        }
+
+        mouse.TimestampedMouseActivityReceived += ObserveMouse;
         try
         {
             await Task.Run(PressChord);
@@ -51,19 +62,51 @@ public sealed class HotkeyRecordingIntegrationTests
             });
             await typed.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
             Assert.True(recorder.IsRecording);
-            await Task.Run(PressChord);
+            await Task.Run(() =>
+            {
+                PressModifiers();
+                HookThreadIntegrationTests.NativeInput.SendProbe(keyboard: false);
+            });
+            MouseActivityInfo movement = await moved.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
+            await Task.Run(() => Send(0x52, false));
             await stopped.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
             Assert.False(recorder.IsRecording);
-            Assert.Equal<int?>([0x42, 0x42], recorder.CurrentSession!.Events.Where(item => item.EventType == MacroEventType.Keyboard).Select(item => item.KeyCode));
+            var events = recorder.CurrentSession!.Events;
+            Assert.Contains(events, item => item.EventType == MacroEventType.Mouse
+                && item.MouseActionType == MouseActionType.Move
+                && item.X == movement.X
+                && item.Y == movement.Y
+                && item.TimestampUtc == movement.TimestampUtc);
+            Assert.Equal<int?>([0x42, 0x42], events.Where(item => item.EventType == MacroEventType.Keyboard).Select(item => item.KeyCode));
         }
         finally
         {
-            ReleaseChord(); Send(0x42, true);
-            if (recorder.IsRecording) { await recorder.StopAsync(); }
+            mouse.TimestampedMouseActivityReceived -= ObserveMouse;
+            try
+            {
+                ReleaseChord(); Send(0x42, true);
+                if (recorder.IsRecording) { await recorder.StopAsync(); }
+            }
+            finally
+            {
+                HookThreadIntegrationTests.NativeInput.RestoreCursor(originalCursor);
+            }
         }
     });
 
-    private static void PressChord() { Send(0xA2, false); Send(0xA0, false); Send(0xA4, false); Send(0x52, false); }
+    private static void PressChord()
+    {
+        PressModifiers();
+        Send(0x52, false);
+    }
+
+    private static void PressModifiers()
+    {
+        Send(0xA2, false);
+        Send(0xA0, false);
+        Send(0xA4, false);
+    }
+
     private static void ReleaseChord() { Send(0x52, true); Send(0xA4, true); Send(0xA0, true); Send(0xA2, true); }
     private static void Send(ushort key, bool up)
     {
