@@ -25,6 +25,9 @@
 
 ### Düzeltilenler
 
+- Makredo aynı Windows oturumunda bir kez çalışır. İkinci açılış mevcut
+  pencereyi geri getirir ve ikinci süreç kapanır.
+
 - Kaydedilmemiş oturum kapatılırken, temizlenirken, yeni kayıt başlatılırken
   veya başka bir makro yüklenirken Kaydet, Kaydetme ve İptal seçenekleri sunulur.
   Kütüphanede tek tık seçer, çift tık veya Enter yükler.
@@ -78,6 +81,9 @@
   active leased attempts and fresh directories are preserved.
 
 ### Fixed
+
+- Makredo runs once per Windows session. A second launch restores the existing
+  window and exits.
 
 - Unsaved sessions offer Save, Discard and Cancel before closing, clearing,
   starting a recording or loading another macro. Single click selects a library
