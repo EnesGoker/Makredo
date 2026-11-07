@@ -669,7 +669,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
             try
             {
                 // Completion cannot dispose the active resolver while a step is using it.
-                PlaybackCoordinateResolver? activeResolver = GetActiveCoordinateResolverIfPaused();
+                PlaybackCoordinateResolver? activeResolver = GetActiveCoordinateResolverIfPaused(navigationOwner);
                 using PlaybackCoordinateResolver? stepResolver = activeResolver is null
                     ? PlaybackCoordinateResolver.Create(session, effectiveSettings)
                     : null;
@@ -743,11 +743,12 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         }
     }
 
-    private PlaybackCoordinateResolver? GetActiveCoordinateResolverIfPaused()
+    private PlaybackCoordinateResolver? GetActiveCoordinateResolverIfPaused(CancellationTokenSource? navigationOwner)
     {
         lock (_syncRoot)
         {
-            return !_playbackCompleting && _applicationStateService.IsState(AppState.Paused)
+            return navigationOwner is not null && _playbackCancellationTokenSource == navigationOwner
+                && !_playbackCompleting && _applicationStateService.IsState(AppState.Paused)
                 ? _activeCoordinateResolver
                 : null;
         }
