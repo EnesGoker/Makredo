@@ -575,6 +575,27 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         return flight.Task;
     }
 
+    public async Task StopAndWaitAsync(CancellationToken cancellationToken = default)
+    {
+        Task playbackCompletion;
+        Task manualOperations;
+        lock (_syncRoot)
+        {
+            playbackCompletion = _playbackCompletion?.Task ?? Task.CompletedTask;
+            manualOperations = _manualOperationsDrained?.Task ?? Task.CompletedTask;
+        }
+
+        try
+        {
+            await StopAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await playbackCompletion.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await manualOperations.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public Task<MacroEvent> PlayEventAtAsync(
         MacroSession session,
         PlaybackSettings settings,

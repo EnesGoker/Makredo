@@ -18,6 +18,7 @@ internal sealed class AppCompositionRoot : IDisposable
     public IMacroPlaybackService MacroPlaybackService { get; }
     public IMacroOptimizationService MacroOptimizationService { get; }
     public IMacroStorageService MacroStorageService { get; }
+    public SessionDocument SessionDocument { get; }
     public IMacroLibraryService MacroLibraryService { get; }
     public IPlaybackSettingsStore PlaybackSettingsStore { get; }
     public IHotkeySettingsStore HotkeySettingsStore { get; }
@@ -35,6 +36,7 @@ internal sealed class AppCompositionRoot : IDisposable
         IMacroPlaybackService macroPlaybackService,
         IMacroOptimizationService macroOptimizationService,
         IMacroStorageService macroStorageService,
+        SessionDocument sessionDocument,
         IMacroLibraryService macroLibraryService,
         IPlaybackSettingsStore playbackSettingsStore,
         IHotkeySettingsStore hotkeySettingsStore,
@@ -49,6 +51,7 @@ internal sealed class AppCompositionRoot : IDisposable
         MacroPlaybackService = macroPlaybackService;
         MacroOptimizationService = macroOptimizationService;
         MacroStorageService = macroStorageService;
+        SessionDocument = sessionDocument;
         MacroLibraryService = macroLibraryService;
         PlaybackSettingsStore = playbackSettingsStore;
         HotkeySettingsStore = hotkeySettingsStore;
@@ -89,6 +92,8 @@ internal sealed class AppCompositionRoot : IDisposable
         IHotkeyService hotkeyService = new WindowsHotkeyService(hotkeyConfiguration, resolvedLogger);
 
         IJsonMacroStorageService jsonMacroStorageService = new JsonMacroStorageService();
+        var sessionDocument = new SessionDocument(
+            new SessionRecoveryStore(storagePaths.SessionRecoveryFilePath, jsonMacroStorageService, resolvedLogger));
         IXmlMacroStorageService xmlMacroStorageService = new XmlMacroStorageService();
         IMacroStorageService macroStorageService =
             new MacroStorageService(jsonMacroStorageService, xmlMacroStorageService);
@@ -149,6 +154,7 @@ internal sealed class AppCompositionRoot : IDisposable
             macroPlaybackService,
             macroOptimizationService,
             macroStorageService,
+            sessionDocument,
             macroLibraryService,
             playbackSettingsStore,
             hotkeySettingsStore,
@@ -167,6 +173,7 @@ internal sealed class AppCompositionRoot : IDisposable
             MacroPlaybackService,
             MacroOptimizationService,
             MacroStorageService,
+            SessionDocument,
             MacroLibraryService,
             PlaybackSettingsStore,
             HotkeySettingsStore,

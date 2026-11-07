@@ -25,6 +25,12 @@
 
 ### Düzeltilenler
 
+- Kaydedilmemiş oturum kapatılırken, temizlenirken, yeni kayıt başlatılırken
+  veya başka bir makro yüklenirken Kaydet, Kaydetme ve İptal seçenekleri sunulur.
+  Kütüphanede tek tık seçer, çift tık veya Enter yükler.
+- Kayıt bittikten sonra kurtarma dosyası yazılır. Sonraki açılışta oturum geri
+  yüklenebilir. Windows kapanırken soru gösterilmeden son kayıt yazılır.
+
 - Esc veya Pause, başka bir pencere odaktayken ve değiştirici tuşlar basılıyken
   oynatmayı, başlangıç beklemesini veya duraklatılmış oturumu durdurur. Oynatma
   bastığı girdileri bırakır. Ekran klavyesi de acil durdurmayı tetikleyebilir.
@@ -72,6 +78,12 @@
   active leased attempts and fresh directories are preserved.
 
 ### Fixed
+
+- Unsaved sessions offer Save, Discard and Cancel before closing, clearing,
+  starting a recording or loading another macro. Single click selects a library
+  row, and double-click or Enter loads it.
+- Recording completion writes a recovery file that can be restored at launch.
+  Windows shutdown checkpoints the session without a prompt.
 
 - Escape or Pause stops playback during an initial delay, an event delay or
   a pause, with any window focused and any modifiers held. Playback releases

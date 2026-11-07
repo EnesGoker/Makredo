@@ -62,6 +62,27 @@ public sealed class MacroRecorderService : IMacroRecorderService
         }
     }
 
+    public MacroSession? CaptureRecordingSnapshot()
+    {
+        lock (_syncRoot)
+        {
+            if (!_acceptingEvents || _currentSession is not { } session)
+            {
+                return null;
+            }
+
+            var snapshot = new MacroSession
+            {
+                Id = session.Id,
+                Name = session.Name,
+                CreatedAtUtc = session.CreatedAtUtc,
+                FormatVersion = session.FormatVersion
+            };
+            snapshot.Events.AddRange(_recordedEvents);
+            return snapshot;
+        }
+    }
+
     public event Action? RecordingStarted;
     public event Action<MacroEvent>? EventRecorded;
     public event Action<MacroSession>? RecordingStopped;

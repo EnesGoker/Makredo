@@ -16,6 +16,8 @@ internal sealed class AppStoragePaths
 
     public string MacroLibraryDirectoryPath { get; }
 
+    public string SessionRecoveryFilePath { get; }
+
     private AppStoragePaths(string rootDirectoryPath)
     {
         RootDirectoryPath = rootDirectoryPath;
@@ -24,6 +26,7 @@ internal sealed class AppStoragePaths
         HotkeySettingsFilePath = Path.Combine(rootDirectoryPath, "hotkey-settings.json");
         MacroLibraryStateFilePath = Path.Combine(rootDirectoryPath, "library-state.json");
         MacroLibraryDirectoryPath = Path.Combine(rootDirectoryPath, "macros");
+        SessionRecoveryFilePath = Path.Combine(rootDirectoryPath, "session-recovery.json");
     }
 
     public static AppStoragePaths CreateDefault()

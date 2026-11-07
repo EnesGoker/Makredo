@@ -12,10 +12,17 @@ internal sealed class ThemedMessageDialog : Form
         string text,
         string caption,
         MessageBoxButtons buttons,
-        MessageBoxIcon icon)
+        MessageBoxIcon icon,
+        bool saveChanges = false)
     {
         MessageContent content = ResolveContent(text, icon);
-        IReadOnlyList<MessageButtonSpec> buttonSpecs = ResolveButtons(buttons);
+        IReadOnlyList<MessageButtonSpec> buttonSpecs = saveChanges
+            ? [
+                new("Kaydet", DialogResult.Yes, ThemedDialogButtonStyle.Primary, IsDefault: true, IsCancel: false),
+                new("Kaydetme", DialogResult.No, ThemedDialogButtonStyle.Secondary, IsDefault: false, IsCancel: false),
+                new("İptal", DialogResult.Cancel, ThemedDialogButtonStyle.Secondary, IsDefault: false, IsCancel: true)
+            ]
+            : ResolveButtons(buttons);
 
         Text = string.IsNullOrWhiteSpace(caption)
             ? ProductInfo.Name
@@ -49,6 +56,9 @@ internal sealed class ThemedMessageDialog : Form
             ? dialog.ShowDialog()
             : dialog.ShowDialog(owner);
     }
+
+    internal static ThemedMessageDialog CreateSaveChanges(string text, string caption) =>
+        new(text, caption, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, saveChanges: true);
 
     protected override void OnHandleCreated(EventArgs e)
     {

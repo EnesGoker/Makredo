@@ -42,16 +42,7 @@ internal static class AtomicFileWriteHelper
 
         try
         {
-            await using (var stream = new FileStream(
-                             temporaryFilePath,
-                             new FileStreamOptions
-                             {
-                                 Mode = FileMode.CreateNew,
-                                 Access = FileAccess.Write,
-                                 Share = FileShare.None,
-                                 BufferSize = 4096,
-                                 Options = FileOptions.Asynchronous | FileOptions.WriteThrough
-                             }))
+            await using (FileStream stream = OpenTemporaryFile(temporaryFilePath, asynchronous: true))
             {
                 await writeAsync(stream, cancellationToken);
                 await stream.FlushAsync(cancellationToken);
@@ -60,14 +51,7 @@ internal static class AtomicFileWriteHelper
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (File.Exists(filePath))
-            {
-                File.Replace(temporaryFilePath, filePath, null, ignoreMetadataErrors: true);
-            }
-            else
-            {
-                File.Move(temporaryFilePath, filePath);
-            }
+            CommitTemporaryFile(temporaryFilePath, filePath);
         }
         catch
         {
@@ -76,7 +60,37 @@ internal static class AtomicFileWriteHelper
         }
     }
 
-    private static string CreateTemporaryFilePath(string filePath)
+    internal static void WriteTemporaryFile(string temporaryFilePath, Action<FileStream> write)
+    {
+        EnsureDirectoryExists(temporaryFilePath);
+        using FileStream stream = OpenTemporaryFile(temporaryFilePath, asynchronous: false);
+        write(stream);
+        stream.Flush(flushToDisk: true);
+    }
+
+    internal static void CommitTemporaryFile(string temporaryFilePath, string filePath)
+    {
+        if (File.Exists(filePath))
+        {
+            File.Replace(temporaryFilePath, filePath, null, ignoreMetadataErrors: true);
+        }
+        else
+        {
+            File.Move(temporaryFilePath, filePath);
+        }
+    }
+
+    private static FileStream OpenTemporaryFile(string filePath, bool asynchronous) =>
+        new(filePath, new FileStreamOptions
+        {
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+            BufferSize = 4096,
+            Options = FileOptions.WriteThrough | (asynchronous ? FileOptions.Asynchronous : FileOptions.None)
+        });
+
+    internal static string CreateTemporaryFilePath(string filePath)
     {
         string directoryPath = Path.GetDirectoryName(filePath)
             ?? throw new InvalidOperationException(
@@ -86,7 +100,7 @@ internal static class AtomicFileWriteHelper
         return Path.Combine(directoryPath, $"{fileName}.{Guid.NewGuid():N}.tmp");
     }
 
-    private static void TryDeleteTemporaryFile(string filePath)
+    internal static void TryDeleteTemporaryFile(string filePath)
     {
         try
         {
