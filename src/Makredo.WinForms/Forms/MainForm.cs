@@ -618,6 +618,11 @@ public partial class MainForm : Form
 
     private void OnPlaybackStarted()
     {
+        if (DeferPlaybackNotification(OnPlaybackStarted))
+        {
+            return;
+        }
+
         _playedEventCount = 0;
         _playedDurationMs = 0;
         _activePlaybackSourceIndex = null;
@@ -628,6 +633,11 @@ public partial class MainForm : Form
 
     private void OnPlaybackStateChanged()
     {
+        if (DeferPlaybackNotification(OnPlaybackStateChanged))
+        {
+            return;
+        }
+
         CancelPendingPlaybackTelemetryRefresh();
         CancelPendingPlaybackSelectionRefresh();
         RequestUiRefresh();
@@ -635,6 +645,11 @@ public partial class MainForm : Form
 
     private void OnPlaybackEventPlayed(MacroEvent macroEvent)
     {
+        if (DeferPlaybackNotification(() => OnPlaybackEventPlayed(macroEvent)))
+        {
+            return;
+        }
+
         _activePlaybackSourceIndex = ResolveCurrentPlaybackSourceIndex();
         _playedEventCount = SaturatingAdd(_playedEventCount, 1);
         _playedDurationMs = SaturatingAdd(_playedDurationMs, macroEvent.DelayMs);
@@ -659,6 +674,11 @@ public partial class MainForm : Form
 
     private void OnPlaybackStopped()
     {
+        if (DeferPlaybackNotification(OnPlaybackStopped))
+        {
+            return;
+        }
+
         _playedEventCount = 0;
         _playedDurationMs = 0;
         _activePlaybackSourceIndex = null;
@@ -1719,6 +1739,22 @@ public partial class MainForm : Form
         return shouldFollowIdleDebugCursor
             || shouldFollowPausedDebugCursor
             || shouldFollowSimulationPlayback;
+    }
+
+    private bool DeferPlaybackNotification(Action notification)
+    {
+        if (!CanRunDeferredUiRefresh())
+        {
+            return true;
+        }
+
+        if (!InvokeRequired)
+        {
+            return false;
+        }
+
+        TryBeginInvokeOnUiThread(notification);
+        return true;
     }
 
     private void RequestUiRefresh()

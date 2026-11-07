@@ -60,7 +60,7 @@ internal sealed class PlaybackCoordinateResolver : IDisposable
 
         int safeIteration = Math.Max(iteration, 0);
 
-        await _anchorGate.WaitAsync(cancellationToken);
+        await _anchorGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -76,7 +76,7 @@ internal sealed class PlaybackCoordinateResolver : IDisposable
             }
 
             CursorPosition playbackMouseAnchor =
-                await cursorPositionProvider.GetCursorPositionAsync(cancellationToken);
+                await cursorPositionProvider.GetCursorPositionAsync(cancellationToken).ConfigureAwait(false);
 
             lock (_syncRoot)
             {

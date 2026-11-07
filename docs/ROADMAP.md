@@ -18,7 +18,7 @@ Slogan: **"Bir kez yap, gerisini o yapsın."** / *"Do it once. Let it do the res
 | Dağıtım | GitHub Releases (installer ve portable zip) + Microsoft Store (MSIX, v1.0'da) |
 | Arayüz dili | Türkçe ve İngilizce. İşletim sistemi dili Türkçeyse Türkçe, değilse İngilizce açılır; ayarlardan değiştirilebilir. |
 | Doküman dili | Önce Türkçe, sonra İngilizce. Kod, commit ve PR İngilizce. |
-| Kısayollar | Kayıt: `Ctrl+Shift+Alt+R` · Oynat/Durdur: `Ctrl+Shift+Alt+P` · Acil durdurma: fiziksel `Esc` ya da `Pause` · Ayarlarda F8/F9/F10 hazır seçeneği |
+| Kısayollar | Kayıt: `Ctrl+Shift+Alt+R` · Oynat/Durdur: `Ctrl+Shift+Alt+P` · Acil durdurma: imzasız `Esc` ya da `Pause` · Ayarlarda F8/F9/F10 hazır seçeneği |
 | Test | Yerel sanal makine kullanılmaz. Core testleri her yerde çalışır, Windows testleri CI'da çalışır. Manuel kontroller Azure'da ya da gerçek bilgisayarda yapılır. |
 | Telemetri | Yok. Kullanım istatistikleri Store paneli ve GitHub indirme sayılarından alınır. |
 
@@ -162,11 +162,11 @@ Hedef: Kritik bulguların hepsinin kapanması. Tuş takılı kalmamalı, makro h
 - **Kabul:** Bir kısayol çakıştığında diğerleri çalışıyor ve kullanıcı uyarı görüyor. Basılı tutulan kısayol kaydı açıp kapatmıyor (denetimdeki T2 senaryosu).
 
 **T1.6 — Acil durdurma** `[M]` · Core + CI-Win · ADR-004 · F-002
-- Oynatma sürerken hook üzerinden gelen **fiziksel** `Esc` ya da `Pause` tuşu oynatmayı durdursun. Odak hangi penceredeyse ve hangi modifier basılı olursa olsun çalışsın.
+- Başlangıç gecikmesi ve duraklatma dahil oynatma sürerken hook üzerinden gelen imzasız `Esc`, `Pause` veya `Ctrl+Pause` oynatmayı durdursun. Fiziksel klavye ve ekran klavyesiyle, pencere odağından ve modifier tuşlarından bağımsız çalışsın.
 - Makronun kendi gönderdiği `Esc` (enjekte) durdurmayı tetiklemesin.
 - Durdurmadan sonra T1.2'deki bırakma adımı çalışsın.
 - Bağımlılık: T1.2, T1.3, T1.4.
-- **Kabul:** Testler şunları kanıtlıyor: Ctrl basılıyken Esc oynatmayı durduruyor, enjekte Esc durdurmuyor, durdurmadan sonra basılı tuş kalmıyor.
+- **Kabul:** Testler şunları kanıtlıyor: Ctrl basılıyken Esc oynatmayı durduruyor, Makredo imzalı Esc durdurmuyor, durdurmadan sonra oynatmanın bastığı tuşlar bırakılıyor.
 
 **T1.7 — Oturum belgesi ve kaydedilmemiş değişiklikler** `[M]` · Core · 🔒 · F-003
 - Oturum durumunu `MainForm`'dan çıkarıp test edilebilir bir `SessionDocument` sınıfına taşı. "Değişti" bayrağı orada tutulsun.

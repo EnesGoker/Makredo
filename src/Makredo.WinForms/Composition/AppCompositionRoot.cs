@@ -117,7 +117,8 @@ internal sealed class AppCompositionRoot : IDisposable
             inputPlaybackAdapter,
             inputPlaybackAdapter,
             applicationStateService,
-            resolvedLogger);
+            resolvedLogger,
+            keyboardHookSource: keyboardHookSource);
         IMacroOptimizationService macroOptimizationService = new MacroOptimizationService();
 
         List<IDisposable> disposables = [];
