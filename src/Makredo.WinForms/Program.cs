@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using Makredo.Application.Services;
 using Makredo.Infrastructure.Persistence;
+using Makredo.Platform.Windows.Startup;
 using Makredo.WinForms.Composition;
 using Makredo.WinForms.Composition.Migration;
 
@@ -7,10 +9,31 @@ namespace Makredo.WinForms;
 
 internal static class Program
 {
+    private const string InstanceMutexName = @"Local\Makredo.SingleInstance";
+
     [STAThread]
     static void Main()
     {
+        using var instanceMutex = new Mutex(initiallyOwned: false, InstanceMutexName);
+        if (!SingleInstanceStartup.TryStart(() => instanceMutex.WaitOne(0), WindowsInstanceActivation.SignalExistingInstance))
+        {
+            return;
+        }
+
+        try
+        {
+            RunPrimaryInstance();
+        }
+        finally
+        {
+            instanceMutex.ReleaseMutex();
+        }
+    }
+
+    private static void RunPrimaryInstance()
+    {
         ApplicationConfiguration.Initialize();
+        using var activation = new WindowsInstanceActivation();
 
         if (!TryPrepareStorage(
             () => AppCompositionRoot.PrepareDefaultStorage(),
@@ -24,7 +47,9 @@ internal static class Program
         using AppCompositionRoot compositionRoot = AppCompositionRoot.Create(storagePaths);
         using var globalExceptionHandlerRegistration = new GlobalExceptionHandlerRegistration(
             compositionRoot.AppLogger);
-        global::System.Windows.Forms.Application.Run(compositionRoot.CreateMainForm());
+        using var form = compositionRoot.CreateMainForm();
+        form.Shown += (_, _) => activation.Attach(form);
+        global::System.Windows.Forms.Application.Run(form);
     }
 
     internal static bool TryPrepareStorage(
