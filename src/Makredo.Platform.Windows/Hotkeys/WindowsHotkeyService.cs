@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Makredo.Application.Abstractions;
+using Makredo.Application.Hotkeys;
 using Makredo.Application.Services;
 using Makredo.Domain;
 
@@ -10,9 +11,8 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
     private const int RecordToggleHotkeyId = 1001;
     private const int PlaybackToggleHotkeyId = 1002;
     private const int StopHotkeyId = 1003;
-    private const int HotkeySettingsHotkeyId = 1004;
 
-    private const uint ModNone = 0x0000;
+    private const uint ModNoRepeat = 0x4000;
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
     private const uint ModShift = 0x0004;
@@ -33,12 +33,13 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
         _messageWindow = new HotkeyMessageWindow(this);
     }
 
+    public IReadOnlyList<HotkeyRegistrationFailure> RegistrationFailures { get; private set; } = [];
+
     public bool IsRegistered => _registeredHotkeys.Count > 0;
 
     public event Action? RecordToggleRequested;
     public event Action? PlaybackToggleRequested;
     public event Action? StopRequested;
-    public event Action? HotkeySettingsRequested;
 
     public bool IsHotkeyRegistered(HotkeyBinding hotkeyBinding)
     {
@@ -70,47 +71,20 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
 
         _messageWindow.EnsureHandleCreated();
 
-        List<int> registeredHotkeyIds = [];
-
-        try
+        List<HotkeyRegistrationRequest> requests =
+        [
+            new(RecordToggleHotkeyId, _hotkeyConfiguration.RecordToggleHotkey),
+            new(PlaybackToggleHotkeyId, _hotkeyConfiguration.PlaybackToggleHotkey)
+        ];
+        if (_hotkeyConfiguration.StopHotkey != _hotkeyConfiguration.PlaybackToggleHotkey)
         {
-            RegisterRequiredHotkey(
-                RecordToggleHotkeyId,
-                _hotkeyConfiguration.RecordToggleHotkey);
-            registeredHotkeyIds.Add(RecordToggleHotkeyId);
-
-            RegisterRequiredHotkey(
-                PlaybackToggleHotkeyId,
-                _hotkeyConfiguration.PlaybackToggleHotkey);
-            registeredHotkeyIds.Add(PlaybackToggleHotkeyId);
-
-            RegisterRequiredHotkey(
-                StopHotkeyId,
-                _hotkeyConfiguration.StopHotkey);
-            registeredHotkeyIds.Add(StopHotkeyId);
-
-            if (TryRegisterOptionalHotkey(
-                HotkeySettingsHotkeyId,
-                _hotkeyConfiguration.HotkeySettingsHotkey))
-            {
-                registeredHotkeyIds.Add(HotkeySettingsHotkeyId);
-            }
+            requests.Add(new(StopHotkeyId, _hotkeyConfiguration.StopHotkey));
         }
-        catch
+        RegistrationFailures = HotkeyRegistrationBatch.Register(requests, request => RegisterRequiredHotkey(request.Id, request.Binding));
+        foreach (HotkeyRegistrationFailure failure in RegistrationFailures)
         {
-            for (int index = registeredHotkeyIds.Count - 1; index >= 0; index--)
-            {
-                UnregisterSingleHotkey(registeredHotkeyIds[index]);
-            }
-
-            _registeredHotkeys.Clear();
-            throw;
+            _logger.Log(AppLogLevel.Warning, nameof(WindowsHotkeyService), failure.Reason);
         }
-
-        _logger.Log(
-            AppLogLevel.Information,
-            nameof(WindowsHotkeyService),
-            "Global kısayollar başarıyla kaydedildi.");
         return Task.CompletedTask;
     }
 
@@ -142,6 +116,7 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
 
     internal void HandleHotkeyPressed(int hotkeyId)
     {
+        if (!_registeredHotkeys.ContainsKey(hotkeyId)) { return; }
         switch (hotkeyId)
         {
             case RecordToggleHotkeyId:
@@ -156,9 +131,6 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
                 StopRequested?.Invoke();
                 break;
 
-            case HotkeySettingsHotkeyId:
-                HotkeySettingsRequested?.Invoke();
-                break;
         }
     }
 
@@ -178,22 +150,6 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
         }
 
         _registeredHotkeys[id] = hotkeyBinding;
-    }
-
-    private bool TryRegisterOptionalHotkey(int id, HotkeyBinding hotkeyBinding)
-    {
-        if (TryRegisterHotkey(id, hotkeyBinding, out InvalidOperationException? exception))
-        {
-            _registeredHotkeys[id] = hotkeyBinding;
-            return true;
-        }
-
-        _logger.Log(
-            AppLogLevel.Warning,
-            nameof(WindowsHotkeyService),
-            "Yardımcı global kısayol kaydedilemedi. Ana kısayollar aktif kalacak.",
-            exception);
-        return false;
     }
 
     private bool TryRegisterHotkey(
@@ -216,8 +172,18 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
         int errorCode = Marshal.GetLastWin32Error();
         exception = new InvalidOperationException(
             FormattableString.Invariant(
-                $"Kısayol kaydedilemedi. Kimlik: {id}, kısayol: {FormatHotkey(hotkeyBinding)}. Win32 hata kodu: {errorCode}"));
+                $"{FormatHotkey(hotkeyBinding)} kaydedilemedi: {(errorCode == 1409 ? "başka bir uygulama tarafından kullanılıyor" : new System.ComponentModel.Win32Exception(errorCode).Message)} (Win32 {errorCode})."));
         return false;
+    }
+
+    public static IReadOnlyCollection<int> CapturePressedKeys(HotkeyBinding binding)
+    {
+        List<int> keys = [binding.VirtualKeyCode];
+        foreach (int key in new[] { 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0x5B, 0x5C })
+        {
+            if ((HotkeyRecordingFilter.ModifierForKey(key) & binding.Modifiers) != 0) { keys.Add(key); }
+        }
+        return keys.Where(key => (HotkeyNativeMethods.GetAsyncKeyState(key) & 0x8000) != 0).ToArray();
     }
 
     private static string FormatHotkey(HotkeyBinding hotkeyBinding)
@@ -255,7 +221,7 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
 
     private static uint MapModifiers(HotkeyModifiers modifiers)
     {
-        uint nativeModifiers = ModNone;
+        uint nativeModifiers = ModNoRepeat;
 
         if (modifiers.HasFlag(HotkeyModifiers.Alt))
         {
@@ -351,6 +317,9 @@ public sealed class WindowsHotkeyService : IHotkeyService, IDisposable
 
     private static class HotkeyNativeMethods
     {
+        [DllImport("user32.dll")]
+        internal static extern short GetAsyncKeyState(int key);
+
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool RegisterHotKey(

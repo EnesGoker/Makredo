@@ -19,6 +19,8 @@ public interface IMacroRecorderService
         string? sessionName = null,
         CancellationToken cancellationToken = default);
 
+    Task StartAsync(string? sessionName, IReadOnlyCollection<int>? startingHotkeyKeys, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Finalizes the active recording and preserves the completed session in
     /// <see cref="CurrentSession"/> for subsequent preview, playback, or save operations.

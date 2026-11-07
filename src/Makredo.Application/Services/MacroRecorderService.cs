@@ -1,5 +1,6 @@
 using System.Globalization;
 using Makredo.Application.Abstractions;
+using Makredo.Application.Hotkeys;
 using Makredo.Domain.Enums;
 using Makredo.Domain.Models;
 
@@ -21,10 +22,10 @@ public sealed class MacroRecorderService : IMacroRecorderService
     private readonly IAppLogger _logger;
 
     private readonly List<MacroEvent> _recordedEvents = [];
-    private readonly List<MacroEvent> _pendingModifierEvents = [];
-    private readonly HashSet<HotkeyModifiers> _suppressedHotkeyModifierReleases = [];
+    private HotkeyRecordingFilter _hotkeyFilter = new([]);
+
     private MacroSession? _currentSession;
-    private DateTime _lastEventTimestampUtc;
+    private DateTime _latestEventTimestampUtc;
 
     public MacroRecorderService(
         IKeyboardHookSource keyboardHookSource,
@@ -65,9 +66,10 @@ public sealed class MacroRecorderService : IMacroRecorderService
     public event Action<MacroEvent>? EventRecorded;
     public event Action<MacroSession>? RecordingStopped;
 
-    public Task StartAsync(
-        string? sessionName = null,
-        CancellationToken cancellationToken = default)
+    public Task StartAsync(string? sessionName = null, CancellationToken cancellationToken = default)
+        => StartAsync(sessionName, null, cancellationToken);
+
+    public Task StartAsync(string? sessionName, IReadOnlyCollection<int>? startingHotkeyKeys, CancellationToken cancellationToken = default)
     {
         TaskCompletionSource completion;
         lock (_lifecycleSyncRoot)
@@ -87,7 +89,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
         }
 
         // Reserve before the core can publish state or call external hook implementations.
-        _ = CompleteStartFlightAsync(sessionName, completion, cancellationToken);
+        _ = CompleteStartFlightAsync(sessionName, completion, startingHotkeyKeys, cancellationToken);
         return completion.Task;
     }
 
@@ -114,12 +116,13 @@ public sealed class MacroRecorderService : IMacroRecorderService
     private async Task CompleteStartFlightAsync(
         string? sessionName,
         TaskCompletionSource completion,
+        IReadOnlyCollection<int>? startingHotkeyKeys,
         CancellationToken cancellationToken)
     {
         Exception? failure = null;
         try
         {
-            await StartCoreAsync(sessionName, cancellationToken);
+            await StartCoreAsync(sessionName, startingHotkeyKeys, cancellationToken);
         }
         catch (Exception exception)
         {
@@ -185,8 +188,9 @@ public sealed class MacroRecorderService : IMacroRecorderService
     }
 
     private async Task StartCoreAsync(
-        string? sessionName = null,
-        CancellationToken cancellationToken = default)
+        string? sessionName,
+        IReadOnlyCollection<int>? startingHotkeyKeys,
+        CancellationToken cancellationToken)
     {
         MacroSession session = new()
         {
@@ -215,6 +219,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
             {
                 _currentSession = session;
                 ResetRecordingBuffersUnsafe(_timeProvider.GetUtcNow().UtcDateTime);
+                _hotkeyFilter = new HotkeyRecordingFilter([_hotkeyConfiguration.RecordToggleHotkey, _hotkeyConfiguration.PlaybackToggleHotkey, _hotkeyConfiguration.StopHotkey], startingHotkeyKeys);
                 _acceptingEvents = true;
                 sessionPrepared = true;
             }
@@ -333,11 +338,11 @@ public sealed class MacroRecorderService : IMacroRecorderService
         {
             _acceptingEvents = false;
             FlushPendingModifierEventsUnsafe(eventsToPublish);
-            _suppressedHotkeyModifierReleases.Clear();
+
 
             completedSession.ReplaceEvents(_recordedEvents);
             _recordedEvents.Clear();
-            _pendingModifierEvents.Clear();
+            _hotkeyFilter = new HotkeyRecordingFilter([]);
             _currentSession = completedSession;
         }
 
@@ -382,10 +387,10 @@ public sealed class MacroRecorderService : IMacroRecorderService
         lock (_syncRoot)
         {
             _recordedEvents.Clear();
-            _pendingModifierEvents.Clear();
-            _suppressedHotkeyModifierReleases.Clear();
+            _hotkeyFilter = new HotkeyRecordingFilter([]);
+
             _currentSession = null;
-            _lastEventTimestampUtc = _timeProvider.GetUtcNow().UtcDateTime;
+            _latestEventTimestampUtc = _timeProvider.GetUtcNow().UtcDateTime;
         }
 
         _logger.Log(
@@ -406,27 +411,12 @@ public sealed class MacroRecorderService : IMacroRecorderService
                 return;
             }
 
-            if (TryConsumeSuppressedModifierReleaseUnsafe(keyboardActivity))
-            {
-                return;
-            }
-
-            MacroEvent macroEvent = CreateKeyboardMacroEventUnsafe(keyboardActivity);
-
-            if (keyboardActivity.IsModifierKey)
-            {
-                _pendingModifierEvents.Add(macroEvent);
-                return;
-            }
-
-            if (TryConsumeReservedHotkeyUnsafe(keyboardActivity))
-            {
-                return;
-            }
-
             eventsToPublish = [];
-            FlushPendingModifierEventsUnsafe(eventsToPublish);
-            CommitRecordedEventUnsafe(macroEvent, eventsToPublish);
+            KeyboardActivityInfo captured = keyboardActivity with { TimestampUtc = keyboardActivity.TimestampUtc ?? _timeProvider.GetUtcNow().UtcDateTime };
+            foreach (KeyboardActivityInfo accepted in _hotkeyFilter.Process(captured))
+            {
+                CommitRecordedEventUnsafe(CreateKeyboardMacroEventUnsafe(accepted), eventsToPublish);
+            }
         }
 
         PublishRecordedEvents(eventsToPublish);
@@ -447,6 +437,14 @@ public sealed class MacroRecorderService : IMacroRecorderService
                 return;
             }
 
+            eventsToPublish = [];
+            if (activity.ActionType is MouseActionType.LeftDown or MouseActionType.LeftUp
+                or MouseActionType.RightDown or MouseActionType.RightUp
+                or MouseActionType.MiddleDown or MouseActionType.MiddleUp
+                or MouseActionType.DoubleClick or MouseActionType.Wheel)
+            {
+                FlushPendingModifierEventsUnsafe(eventsToPublish);
+            }
             DateTime nowUtc = activity.TimestampUtc;
 
             MacroEvent macroEvent = new()
@@ -461,8 +459,6 @@ public sealed class MacroRecorderService : IMacroRecorderService
                 Description = FormatMouseAction(activity.ActionType)
             };
 
-            eventsToPublish = [];
-            FlushPendingModifierEventsUnsafe(eventsToPublish);
             CommitRecordedEventUnsafe(macroEvent, eventsToPublish);
         }
 
@@ -491,9 +487,9 @@ public sealed class MacroRecorderService : IMacroRecorderService
     {
         _acceptingEvents = false;
         _recordedEvents.Clear();
-        _pendingModifierEvents.Clear();
-        _suppressedHotkeyModifierReleases.Clear();
-        _lastEventTimestampUtc = timestampUtc;
+        _hotkeyFilter = new HotkeyRecordingFilter([]);
+
+        _latestEventTimestampUtc = timestampUtc;
     }
 
     private MacroEvent CreateKeyboardMacroEventUnsafe(KeyboardActivityInfo keyboardActivity)
@@ -519,122 +515,12 @@ public sealed class MacroRecorderService : IMacroRecorderService
         };
     }
 
-    private bool TryConsumeSuppressedModifierReleaseUnsafe(KeyboardActivityInfo keyboardActivity)
-    {
-        if (!keyboardActivity.IsModifierKey
-            || !_suppressedHotkeyModifierReleases.Contains(keyboardActivity.ModifierKey))
-        {
-            return false;
-        }
-
-        if (!keyboardActivity.IsKeyDown)
-        {
-            _suppressedHotkeyModifierReleases.Remove(keyboardActivity.ModifierKey);
-        }
-
-        return true;
-    }
-
-    private bool TryConsumeReservedHotkeyUnsafe(KeyboardActivityInfo keyboardActivity)
-    {
-        if (!TryGetMatchingHotkey(keyboardActivity, out HotkeyBinding hotkeyBinding))
-        {
-            return false;
-        }
-
-        SuppressPendingHotkeyModifiersUnsafe(hotkeyBinding.Modifiers);
-        return true;
-    }
-
-    private bool TryGetMatchingHotkey(
-        KeyboardActivityInfo keyboardActivity,
-        out HotkeyBinding hotkeyBinding)
-    {
-        HotkeyBinding recordToggleHotkey = _hotkeyConfiguration.RecordToggleHotkey;
-        HotkeyBinding playbackToggleHotkey = _hotkeyConfiguration.PlaybackToggleHotkey;
-        HotkeyBinding stopHotkey = _hotkeyConfiguration.StopHotkey;
-        HotkeyBinding hotkeySettingsHotkey = _hotkeyConfiguration.HotkeySettingsHotkey;
-
-        if (MatchesHotkey(recordToggleHotkey, keyboardActivity))
-        {
-            hotkeyBinding = recordToggleHotkey;
-            return true;
-        }
-
-        if (MatchesHotkey(playbackToggleHotkey, keyboardActivity))
-        {
-            hotkeyBinding = playbackToggleHotkey;
-            return true;
-        }
-
-        if (MatchesHotkey(stopHotkey, keyboardActivity))
-        {
-            hotkeyBinding = stopHotkey;
-            return true;
-        }
-
-        if (MatchesHotkey(hotkeySettingsHotkey, keyboardActivity))
-        {
-            hotkeyBinding = hotkeySettingsHotkey;
-            return true;
-        }
-
-        hotkeyBinding = null!;
-        return false;
-    }
-
-    private void SuppressPendingHotkeyModifiersUnsafe(HotkeyModifiers hotkeyModifiers)
-    {
-        if (hotkeyModifiers == HotkeyModifiers.None)
-        {
-            return;
-        }
-
-        HashSet<HotkeyModifiers> suppressedModifiers = [];
-
-        for (int index = _pendingModifierEvents.Count - 1; index >= 0; index--)
-        {
-            MacroEvent pendingModifierEvent = _pendingModifierEvents[index];
-
-            if (pendingModifierEvent.KeyboardActionType != KeyboardActionType.KeyDown
-                || !pendingModifierEvent.KeyCode.HasValue
-                || !TryMapModifierKey(pendingModifierEvent.KeyCode.Value, out HotkeyModifiers modifier)
-                || !hotkeyModifiers.HasFlag(modifier))
-            {
-                continue;
-            }
-
-            _pendingModifierEvents.RemoveAt(index);
-            suppressedModifiers.Add(modifier);
-        }
-
-        foreach (HotkeyModifiers modifier in suppressedModifiers)
-        {
-            _suppressedHotkeyModifierReleases.Add(modifier);
-        }
-    }
-
-    private static bool MatchesHotkey(
-        HotkeyBinding hotkeyBinding,
-        KeyboardActivityInfo keyboardActivity)
-    {
-        return keyboardActivity.VirtualKeyCode == hotkeyBinding.VirtualKeyCode
-            && keyboardActivity.ActiveModifiers == hotkeyBinding.Modifiers;
-    }
-
     private void FlushPendingModifierEventsUnsafe(List<MacroEvent> eventsToPublish)
     {
-        if (_pendingModifierEvents.Count == 0)
+        foreach (KeyboardActivityInfo pending in _hotkeyFilter.Flush())
         {
-            return;
+            CommitRecordedEventUnsafe(CreateKeyboardMacroEventUnsafe(pending), eventsToPublish);
         }
-
-        foreach (MacroEvent pendingModifierEvent in _pendingModifierEvents)
-        {
-            CommitRecordedEventUnsafe(pendingModifierEvent, eventsToPublish);
-        }
-
-        _pendingModifierEvents.Clear();
     }
 
     private void CommitRecordedEventUnsafe(
@@ -719,43 +605,14 @@ public sealed class MacroRecorderService : IMacroRecorderService
         };
     }
 
-    private static bool TryMapModifierKey(int virtualKeyCode, out HotkeyModifiers modifier)
-    {
-        switch (virtualKeyCode)
-        {
-            case 0x10:
-            case 0xA0:
-            case 0xA1:
-                modifier = HotkeyModifiers.Shift;
-                return true;
-
-            case 0x11:
-            case 0xA2:
-            case 0xA3:
-                modifier = HotkeyModifiers.Control;
-                return true;
-
-            case 0x12:
-            case 0xA4:
-            case 0xA5:
-                modifier = HotkeyModifiers.Alt;
-                return true;
-
-            case 0x5B:
-            case 0x5C:
-                modifier = HotkeyModifiers.Windows;
-                return true;
-
-            default:
-                modifier = HotkeyModifiers.None;
-                return false;
-        }
-    }
-
     private int CalculateDelayMsUnsafe(DateTime currentTimestampUtc)
     {
-        int delay = (int)(currentTimestampUtc - _lastEventTimestampUtc).TotalMilliseconds;
-        _lastEventTimestampUtc = currentTimestampUtc;
+        int delay = (int)(currentTimestampUtc - _latestEventTimestampUtc).TotalMilliseconds;
+        // A deferred modifier can be committed after a later mouse move.
+        if (currentTimestampUtc > _latestEventTimestampUtc)
+        {
+            _latestEventTimestampUtc = currentTimestampUtc;
+        }
 
         return Math.Max(delay, 0);
     }

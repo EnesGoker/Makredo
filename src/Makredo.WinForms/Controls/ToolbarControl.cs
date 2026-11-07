@@ -38,6 +38,7 @@ public partial class ToolbarControl : UserControl
     private string? _hotkeysHotkey;
     private string _recordLabel = "Kaydı Başlat";
     private string _playbackLabel = "Oynat";
+    private PlaybackButtonState _playbackButtonState;
 
     public event EventHandler? RecordToggleClicked;
     public event EventHandler? StopClicked;
@@ -70,6 +71,7 @@ public partial class ToolbarControl : UserControl
 
     public void UpdatePlaybackButton(PlaybackButtonState state)
     {
+        _playbackButtonState = state;
         _playbackLabel = state switch
         {
             PlaybackButtonState.Pause => "Duraklat",
@@ -77,7 +79,7 @@ public partial class ToolbarControl : UserControl
             _ => "Oynat"
         };
 
-        SetButtonText(playbackButton, _playbackLabel, _playbackHotkey);
+        SetButtonText(playbackButton, _playbackLabel, _playbackButtonState == PlaybackButtonState.Play ? _playbackHotkey : null);
         ApplyButtonAccent(playbackButton, DesignTokens.Accent, DesignTokens.AccentSoft);
     }
 
@@ -108,7 +110,7 @@ public partial class ToolbarControl : UserControl
 
         SetButtonText(recordButton, _recordLabel, _recordHotkey);
         SetButtonText(stopButton, "Durdur", _stopHotkey);
-        SetButtonText(playbackButton, _playbackLabel, _playbackHotkey);
+        SetButtonText(playbackButton, _playbackLabel, _playbackButtonState == PlaybackButtonState.Play ? _playbackHotkey : null);
         SetButtonText(hotkeysButton, "Kısayollar", _hotkeysHotkey);
     }
 
@@ -242,7 +244,9 @@ public partial class ToolbarControl : UserControl
     {
         button.Text = string.IsNullOrWhiteSpace(hotkey)
             ? label
-            : $"{label} ({hotkey})";
+            : hotkey.Contains('+', StringComparison.Ordinal)
+                ? $"{label}\n({hotkey})"
+                : $"{label} ({hotkey})";
     }
 
     private sealed class ToolbarButton : Button

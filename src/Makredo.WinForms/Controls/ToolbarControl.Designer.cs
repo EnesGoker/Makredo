@@ -71,7 +71,7 @@ partial class ToolbarControl
         recordButton.Name = "recordButton";
         recordButton.Size = new Size(190, 36);
         recordButton.TabIndex = 0;
-        recordButton.Text = "Kaydi Baslat   F8";
+        recordButton.Text = "Kaydı Başlat";
         //
         // stopButton
         //
@@ -80,7 +80,7 @@ partial class ToolbarControl
         stopButton.Name = "stopButton";
         stopButton.Size = new Size(190, 36);
         stopButton.TabIndex = 1;
-        stopButton.Text = "Durdur   F9";
+        stopButton.Text = "Durdur";
         //
         // playbackButton
         //
@@ -89,7 +89,7 @@ partial class ToolbarControl
         playbackButton.Name = "playbackButton";
         playbackButton.Size = new Size(190, 36);
         playbackButton.TabIndex = 2;
-        playbackButton.Text = "Oynat   F10";
+        playbackButton.Text = "Oynat";
         //
         // saveButton
         //
@@ -116,7 +116,7 @@ partial class ToolbarControl
         hotkeysButton.Name = "hotkeysButton";
         hotkeysButton.Size = new Size(190, 36);
         hotkeysButton.TabIndex = 5;
-        hotkeysButton.Text = "Kisayollar   F12";
+        hotkeysButton.Text = "Kısayollar";
         //
         // ToolbarControl
         //

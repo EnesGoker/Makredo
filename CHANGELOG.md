@@ -4,6 +4,11 @@
 
 ### Değişenler
 
+- Varsayılan kayıt kısayolu Ctrl+Shift+Alt+R, oynat/durdur kısayolu Ctrl+Shift+Alt+P oldu.
+  F8/F9/F10 ayarlarda hazır seçenek olarak korunur; kısayol ayarları için global tuş yoktur.
+  Eski varsayılanlarla birebir eşleşen göç edilmiş ayarlar bir kez güncellenir;
+  özel kısayollar değiştirilmez ve göç öncesi ayarlar yedeklenir.
+
 - Uygulama ve yükleyici adı Makredo olarak değiştirildi. Pencere, iletişim kutusu
   ve rapor başlıkları aynı ürün adını kullanır; çalıştırılabilir dosya `Makredo.exe`
   ve günlük dosyaları `makredo-yyyyMMdd.log` olarak adlandırılır.
@@ -19,6 +24,11 @@
   açık işlem kilidi bulunan ve yeni klasörler korunur.
 
 ### Düzeltilenler
+
+- Kısayollar bağımsız kaydedilir; çakışan bağ Türkçe, engellemeyen bir uyarı bandında
+  gösterilirken diğerleri çalışır. Basılı tutma tekrarı kayıt durumunu değiştirmez.
+  Fare hareketi, kaydı başlatan veya bitiren kısayolun modifier tuşlarını kayda
+  sokmaz. Tıklama ve kaydırma için kullanılan modifier tuşları korunur.
 
 - Oynatmanın kendi girdileri ve bırakma olayları kayda alınmaz. Diğer uygulamaların
   enjekte ettiği girdiler varsayılan olarak kaydedilir; bu seçenek ayarlardan kapatılabilir.
@@ -38,6 +48,11 @@
 
 ### Changed
 
+- Default shortcuts are Ctrl+Shift+Alt+R for recording and Ctrl+Shift+Alt+P for play/stop.
+  F8/F9/F10 remain available as a preset; hotkey settings have no global shortcut.
+  Migrated settings matching all legacy defaults are upgraded once, with backups;
+  custom bindings are preserved.
+
 - Renamed the application and installer to Makredo. Window, dialog, and report
   titles use the same product name; the executable is `Makredo.exe` and log files
   are named `makredo-yyyyMMdd.log`.
@@ -53,6 +68,11 @@
   active leased attempts and fresh directories are preserved.
 
 ### Fixed
+
+- Hotkeys register independently. A non-modal Turkish warning identifies collisions
+  while other bindings keep working. Holding a shortcut no longer toggles repeatedly.
+  Mouse movement does not leak the starting or stopping shortcut's modifiers
+  into the recording. Modifiers used for clicks and scrolling are preserved.
 
 - Playback input and cleanup releases are excluded from recording. Foreign injected
   input remains enabled by default and can be disabled in settings.

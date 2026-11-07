@@ -1,5 +1,6 @@
 using System.Drawing.Drawing2D;
 using Makredo.Application.Abstractions;
+using Makredo.Application.Hotkeys;
 using Makredo.Domain;
 using Makredo.WinForms.Controls;
 using Makredo.WinForms.Platform;
@@ -19,8 +20,6 @@ public sealed class HotkeySettingsDialog : Form
     private readonly HotkeyKeyInput _playbackKeyInput = CreateKeyInput();
     private readonly ModernSelect _stopModifierSelect = CreateSelect();
     private readonly HotkeyKeyInput _stopKeyInput = CreateKeyInput();
-    private readonly ModernSelect _hotkeySettingsModifierSelect = CreateSelect();
-    private readonly HotkeyKeyInput _hotkeySettingsKeyInput = CreateKeyInput();
     private readonly ThemedDialogButton _cancelButton;
 
     public HotkeySettingsDialog(HotkeySettings currentSettings)
@@ -51,7 +50,6 @@ public sealed class HotkeySettingsDialog : Form
         PopulateSelect(_recordModifierSelect, ModifierOptions.Select(option => option.DisplayText));
         PopulateSelect(_playbackModifierSelect, ModifierOptions.Select(option => option.DisplayText));
         PopulateSelect(_stopModifierSelect, ModifierOptions.Select(option => option.DisplayText));
-        PopulateSelect(_hotkeySettingsModifierSelect, ModifierOptions.Select(option => option.DisplayText));
 
         Controls.Add(CreateRootLayoutPanel());
 
@@ -210,7 +208,7 @@ public sealed class HotkeySettingsDialog : Form
         AddHotkeyRow(
             settingsTableLayoutPanel,
             2,
-            "Oynat/Duraklat",
+            "Oynat/Durdur",
             _playbackModifierSelect,
             _playbackKeyInput);
         AddHotkeyRow(
@@ -219,18 +217,14 @@ public sealed class HotkeySettingsDialog : Form
             "Durdur",
             _stopModifierSelect,
             _stopKeyInput);
-        AddHotkeyRow(
-            settingsTableLayoutPanel,
-            4,
-            "Kısayolları Aç",
-            _hotkeySettingsModifierSelect,
-            _hotkeySettingsKeyInput);
-
+        settingsTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         return settingsTableLayoutPanel;
     }
 
     private TableLayoutPanel CreateButtonFooterPanel()
     {
+        var legacyButton = CreateDialogButton("F8 / F9 / F10", ThemedDialogButtonStyle.Secondary);
+        legacyButton.Click += (_, _) => ApplyHotkeySettings(HotkeyDefaultsMigration.LegacyPreset());
         var resetDefaultsButton = CreateDialogButton("Varsayılan", ThemedDialogButtonStyle.Secondary);
         var applyButton = CreateDialogButton("Kaydet", ThemedDialogButtonStyle.Primary);
 
@@ -265,6 +259,7 @@ public sealed class HotkeySettingsDialog : Form
         applyButton.Margin = new Padding(DesignTokens.Scale(8), 0, 0, 0);
 
         buttonFooterPanel.Controls.Add(resetDefaultsButton, 0, 0);
+        buttonFooterPanel.Controls.Add(legacyButton, 1, 0);
         buttonFooterPanel.Controls.Add(_cancelButton, 2, 0);
         buttonFooterPanel.Controls.Add(applyButton, 3, 0);
 
@@ -348,11 +343,9 @@ public sealed class HotkeySettingsDialog : Form
         SelectModifier(_recordModifierSelect, hotkeySettings.RecordToggleHotkey.Modifiers);
         SelectModifier(_playbackModifierSelect, hotkeySettings.PlaybackToggleHotkey.Modifiers);
         SelectModifier(_stopModifierSelect, hotkeySettings.StopHotkey.Modifiers);
-        SelectModifier(_hotkeySettingsModifierSelect, hotkeySettings.HotkeySettingsHotkey.Modifiers);
         SelectKey(_recordKeyInput, hotkeySettings.RecordToggleHotkey.VirtualKeyCode);
         SelectKey(_playbackKeyInput, hotkeySettings.PlaybackToggleHotkey.VirtualKeyCode);
         SelectKey(_stopKeyInput, hotkeySettings.StopHotkey.VirtualKeyCode);
-        SelectKey(_hotkeySettingsKeyInput, hotkeySettings.HotkeySettingsHotkey.VirtualKeyCode);
     }
 
     private HotkeySettings BuildHotkeySettings()
@@ -368,9 +361,7 @@ public sealed class HotkeySettingsDialog : Form
             StopHotkey = new HotkeyBinding(
                 GetSelectedKey(_stopKeyInput),
                 GetSelectedModifiers(_stopModifierSelect)),
-            HotkeySettingsHotkey = new HotkeyBinding(
-                GetSelectedKey(_hotkeySettingsKeyInput),
-                GetSelectedModifiers(_hotkeySettingsModifierSelect))
+            HotkeySettingsHotkey = SelectedHotkeySettings.HotkeySettingsHotkey
         };
     }
 

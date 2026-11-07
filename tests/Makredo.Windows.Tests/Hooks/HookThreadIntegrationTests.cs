@@ -143,7 +143,7 @@ public sealed class HookThreadIntegrationTests(ITestOutputHelper output)
         });
     }
 
-    private static Task RunOnStaAsync(Func<Task> test)
+    internal static Task RunOnStaAsync(Func<Task> test)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
@@ -211,7 +211,7 @@ public sealed class HookThreadIntegrationTests(ITestOutputHelper output)
     internal static class NativeInput
     {
         internal const int VirtualKeyF24 = 0x87;
-        private static readonly IntPtr InputMarker = new(0x4D4B5233);
+        internal const int InputMarker = 0x4D4B5233;
 
         internal static bool BlockUiWithoutPumping(WaitHandle entered, WaitHandle release)
         {
@@ -268,13 +268,13 @@ public sealed class HookThreadIntegrationTests(ITestOutputHelper output)
         private static Input Keyboard(bool up) => new()
         {
             Type = 1,
-            Data = new InputUnion { Keyboard = new KeyboardInput { VirtualKey = VirtualKeyF24, Flags = up ? 2u : 0u, ExtraInfo = InputMarker } }
+            Data = new InputUnion { Keyboard = new KeyboardInput { VirtualKey = VirtualKeyF24, Flags = up ? 2u : 0u, ExtraInfo = new IntPtr(InputMarker) } }
         };
 
         private static Input Mouse(int delta) => new()
         {
             Type = 0,
-            Data = new InputUnion { Mouse = new MouseInput { X = delta, Flags = 0x0001 | 0x2000, ExtraInfo = InputMarker } }
+            Data = new InputUnion { Mouse = new MouseInput { X = delta, Flags = 0x0001 | 0x2000, ExtraInfo = new IntPtr(InputMarker) } }
         };
 
         [DllImport("user32.dll", SetLastError = true)]
