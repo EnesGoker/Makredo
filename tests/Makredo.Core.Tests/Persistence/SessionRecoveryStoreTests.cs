@@ -9,6 +9,13 @@ namespace Makredo.Core.Tests.Persistence;
 
 public sealed class SessionRecoveryStoreTests
 {
+    private const string OverflowingRecoveryDuration = """
+        {"Events":[
+            {"EventType":0,"KeyboardActionType":1,"KeyCode":65,"DelayMs":2147483647},
+            {"EventType":0,"KeyboardActionType":2,"KeyCode":65,"DelayMs":1}
+        ]}
+        """;
+
     [Fact]
     public async Task RecoveryRoundTripsAndReplacesTheCommittedFile()
     {
@@ -75,12 +82,7 @@ public sealed class SessionRecoveryStoreTests
     [InlineData("{\"Name\":")]
     [InlineData("{\"FormatVersion\":\"99\",\"Events\":[]}")]
     [InlineData("{\"Events\":[{\"EventType\":0,\"KeyboardActionType\":1,\"KeyCode\":65,\"DelayMs\":-1}]}")]
-    [InlineData("""
-        {"Events":[
-            {"EventType":0,"KeyboardActionType":1,"KeyCode":65,"DelayMs":2147483647},
-            {"EventType":0,"KeyboardActionType":2,"KeyCode":65,"DelayMs":1}
-        ]}
-        """)]
+    [InlineData(OverflowingRecoveryDuration)]
     public async Task InvalidRecoveryReturnsNoSessionAndLogsAWarning(string contents)
     {
         string directory = CreateTempDirectory();
