@@ -25,6 +25,10 @@
 
 ### Düzeltilenler
 
+- Esc veya Pause, başka bir pencere odaktayken ve değiştirici tuşlar basılıyken
+  oynatmayı, başlangıç beklemesini veya duraklatılmış oturumu durdurur. Oynatma
+  bastığı girdileri bırakır. Ekran klavyesi de acil durdurmayı tetikleyebilir.
+
 - Kısayollar bağımsız kaydedilir; çakışan bağ Türkçe, engellemeyen bir uyarı bandında
   gösterilirken diğerleri çalışır. Basılı tutma tekrarı kayıt durumunu değiştirmez.
   Fare hareketi, kaydı başlatan veya bitiren kısayolun modifier tuşlarını kayda
@@ -68,6 +72,10 @@
   active leased attempts and fresh directories are preserved.
 
 ### Fixed
+
+- Escape or Pause stops playback during an initial delay, an event delay or
+  a pause, with any window focused and any modifiers held. Playback releases
+  its held inputs, and on-screen keyboards can trigger the stop.
 
 - Hotkeys register independently. A non-modal Turkish warning identifies collisions
   while other bindings keep working. Holding a shortcut no longer toggles repeatedly.

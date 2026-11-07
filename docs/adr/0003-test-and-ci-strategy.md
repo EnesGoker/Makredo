@@ -69,8 +69,9 @@ empty error lists and no timeout. No unrelated key values were recorded.
    adapter in addition to fake-adapter tests for every exit path. Keep these
    real-input runs explicitly CI-only and separate from default local tests.
 3. For T1.6, use fake sources to cover physical versus injected emergency-stop
-   branches deterministically, and real hooks in CI to check that actual injected
-   SendInput events are identified and ignored as intended. **Injected input does
+   branches deterministically, and real hooks in CI to check that playback-marked
+   SendInput is ignored and unmarked SendInput stops playback. See
+   [ADR 0004](0004-hotkeys-and-emergency-stop.md). **Injected input does
    not prove the positive physical-key path.** Do not clear an injected flag and
    call that hardware evidence; manual K1 checks must cover physical emergency
    stop with modifiers and focus in another application.

@@ -11,11 +11,13 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
     private readonly IApplicationStateService _applicationStateService;
     private readonly IAppLogger _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly IKeyboardHookSource? _keyboardHookSource;
     private readonly object _syncRoot = new();
     private readonly SemaphoreSlim _eventExecutionGate = new(1, 1);
 
     private volatile bool _stopRequested;
     private bool _playbackCompleting;
+    private bool _playbackInputReady;
     private TaskCompletionSource? _stopFlight;
     private TaskCompletionSource? _playbackCompletion;
     private TaskCompletionSource? _disposeFlight;
@@ -35,13 +37,15 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         ICursorPositionProvider cursorPositionProvider,
         IApplicationStateService applicationStateService,
         IAppLogger? logger = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IKeyboardHookSource? keyboardHookSource = null)
     {
         _inputPlaybackAdapter = inputPlaybackAdapter;
         _cursorPositionProvider = cursorPositionProvider;
         _applicationStateService = applicationStateService;
         _logger = logger ?? NullAppLogger.Instance;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _keyboardHookSource = keyboardHookSource;
     }
 
     public bool IsPlaying => _applicationStateService.IsState(AppState.Playing);
@@ -93,13 +97,13 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         {
             try
             {
-                await StopAsync();
+                await StopAsync().ConfigureAwait(false);
             }
             finally
             {
                 // Stop is request-only; shutdown also waits for release and final notifications.
-                await playbackCompletion;
-                await manualOperations;
+                await playbackCompletion.ConfigureAwait(false);
+                await manualOperations.ConfigureAwait(false);
                 Dispose();
             }
             flight.TrySetResult();
@@ -127,6 +131,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         PlaybackCoordinateResolver? coordinateResolver = null;
         bool stateClaimed = false;
         bool playbackStarted = false;
+        bool emergencyStopSubscribed = false;
 
         // Reserve the owner before publishing Playing; callbacks may request Stop.
         lock (_syncRoot)
@@ -143,6 +148,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
             _playbackCancellationTokenSource = playbackCancellationTokenSource;
             _stopRequested = false;
             _playbackCompleting = false;
+            _playbackInputReady = _keyboardHookSource is null;
             _stopFlight = null;
             _resumeSignal = CreateResumeSignal(signaled: true);
         }
@@ -174,6 +180,20 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                 return;
             }
 
+            CancellationToken playbackCancellationToken = playbackCancellationTokenSource.Token;
+            if (_keyboardHookSource is not null)
+            {
+                _keyboardHookSource.KeyActivityReceived += OnEmergencyStopKey;
+                emergencyStopSubscribed = true;
+                await _keyboardHookSource.StartAsync(playbackCancellationToken).ConfigureAwait(false);
+                playbackCancellationToken.ThrowIfCancellationRequested();
+                ThrowIfStopRequested();
+                lock (_syncRoot)
+                {
+                    _playbackInputReady = true;
+                }
+            }
+
             playbackStarted = true;
             _logger.Log(
                 AppLogLevel.Information,
@@ -181,12 +201,9 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                 $"Oynatma baslatildi. Oturum: {session.Name}, olay sayisi: {session.Events.Count}.");
             SafeInvokePlaybackStarted();
 
-            CancellationToken playbackCancellationToken =
-                playbackCancellationTokenSource.Token;
-
             if (effectiveSettings.InitialDelayMs > 0)
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(effectiveSettings.InitialDelayMs), _timeProvider, playbackCancellationToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(effectiveSettings.InitialDelayMs), _timeProvider, playbackCancellationToken).ConfigureAwait(false);
             }
 
             playbackCancellationToken.ThrowIfCancellationRequested();
@@ -195,7 +212,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
             {
                 playbackCancellationToken.ThrowIfCancellationRequested();
                 ThrowIfStopRequested();
-                await WaitIfPausedAsync(playbackCancellationToken);
+                await WaitIfPausedAsync(playbackCancellationToken).ConfigureAwait(false);
 
                 int logicalEventIndex = GetPlaybackCursorSnapshot();
 
@@ -210,7 +227,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                 await coordinateResolver.PrepareForIterationAsync(
                     iteration,
                     _cursorPositionProvider,
-                    playbackCancellationToken);
+                    playbackCancellationToken).ConfigureAwait(false);
 
                 MacroEvent macroEvent = session.Events[eventIndex];
                 MacroEvent playbackEvent = coordinateResolver.Resolve(macroEvent);
@@ -218,7 +235,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
 
                 if (delayMs > 0)
                 {
-                    await Task.Delay(TimeSpan.FromMilliseconds(delayMs), _timeProvider, playbackCancellationToken);
+                    await Task.Delay(TimeSpan.FromMilliseconds(delayMs), _timeProvider, playbackCancellationToken).ConfigureAwait(false);
                 }
 
                 playbackCancellationToken.ThrowIfCancellationRequested();
@@ -239,7 +256,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                     await PlayResolvedEventAsync(
                         playbackEvent,
                         effectiveSettings,
-                        playbackCancellationToken);
+                        playbackCancellationToken).ConfigureAwait(false);
                     AdvancePlaybackCursor(logicalEventIndex);
                 }
                 catch (OperationCanceledException)
@@ -301,7 +318,9 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         }
         finally
         {
-            await CompletePlaybackAsync(playbackCancellationTokenSource, coordinateResolver, stateClaimed, playbackStarted);
+            await CompletePlaybackAsync(
+                playbackCancellationTokenSource, coordinateResolver, stateClaimed, playbackStarted, emergencyStopSubscribed)
+                .ConfigureAwait(false);
         }
     }
 
@@ -309,7 +328,8 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         CancellationTokenSource owner,
         PlaybackCoordinateResolver? coordinateResolver,
         bool stateClaimed,
-        bool playbackStarted)
+        bool playbackStarted,
+        bool emergencyStopSubscribed)
     {
         Task? stopRequest;
         lock (_syncRoot)
@@ -325,7 +345,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
             {
                 try
                 {
-                    await stopRequest;
+                    await stopRequest.ConfigureAwait(false);
                 }
                 catch (Exception exception)
                 {
@@ -333,14 +353,27 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                 }
             }
 
-            await _eventExecutionGate.WaitAsync(CancellationToken.None);
+            await _eventExecutionGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                if (_heldInputs is not null) { await ReleaseHeldInputsAsync(_heldInputs); }
+                if (_heldInputs is not null) { await ReleaseHeldInputsAsync(_heldInputs).ConfigureAwait(false); }
             }
             finally
             {
                 _eventExecutionGate.Release();
+            }
+
+            if (emergencyStopSubscribed)
+            {
+                _keyboardHookSource!.KeyActivityReceived -= OnEmergencyStopKey;
+                try
+                {
+                    await _keyboardHookSource.StopAsync().ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    _logger.Log(AppLogLevel.Error, nameof(MacroPlaybackService), "Acil durdurma kancası kaldırılamadı.", exception);
+                }
             }
 
             lock (_syncRoot)
@@ -379,6 +412,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                 _stopFlight = null;
                 _stopRequested = false;
                 _playbackCompleting = false;
+                _playbackInputReady = false;
             }
             owner.Dispose();
             completed?.TrySetResult();
@@ -446,6 +480,35 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
             "Oynatma devam ettirildi.");
         SafeInvokePlaybackResumed();
         return Task.CompletedTask;
+    }
+
+    private async void OnEmergencyStopKey(KeyboardActivityInfo activity)
+    {
+        const int cancel = 0x03; // Ctrl+Pause
+        const int pause = 0x13;
+        const int escape = 0x1B;
+        if (!activity.IsKeyDown || activity.ExtraInfo == InputOriginPolicy.PlaybackSignature
+            || activity.VirtualKeyCode is not (cancel or pause or escape))
+        {
+            return;
+        }
+
+        try
+        {
+            // Request cancellation here. The playback owner drains the hook during cleanup.
+            await StopAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            try
+            {
+                _logger.Log(AppLogLevel.Error, nameof(MacroPlaybackService), "Acil durdurma isteği işlenemedi.", exception);
+            }
+            catch (Exception)
+            {
+                // A logger failure cannot escape the hook event handler.
+            }
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
@@ -557,6 +620,10 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         lock (_syncRoot)
         {
             navigationOwner = _playbackCancellationTokenSource;
+            if (navigationOwner is not null && !_playbackInputReady)
+            {
+                throw new InvalidOperationException("Oynatma hazırlanırken tek olay gönderilemez.");
+            }
             if (_playbackCompleting || !_applicationStateService.IsAny(AppState.Idle, AppState.Paused)
                 || (navigationOwner is not null && !_applicationStateService.IsState(AppState.Paused)))
             {
@@ -593,25 +660,27 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
 
         PlaybackSettings effectiveSettings = NormalizeSettingsForExecution(settings);
         MacroEvent sourceEvent = session.Events[eventIndex];
-        PlaybackCoordinateResolver? coordinateResolver = GetActiveCoordinateResolverIfPaused();
-        bool shouldDisposeCoordinateResolver = coordinateResolver is null;
-
-        coordinateResolver ??= PlaybackCoordinateResolver.Create(session, effectiveSettings);
         MacroEvent playbackEvent = sourceEvent;
 
         try
         {
-            await coordinateResolver.PrepareForLogicalEventAsync(
-                resolvedLogicalEventIndex,
-                session.Events.Count,
-                _cursorPositionProvider,
-                cancellationToken);
-            playbackEvent = coordinateResolver.Resolve(sourceEvent);
-
-            await _eventExecutionGate.WaitAsync(cancellationToken);
+            await _eventExecutionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             try
             {
+                // Completion cannot dispose the active resolver while a step is using it.
+                PlaybackCoordinateResolver? activeResolver = GetActiveCoordinateResolverIfPaused();
+                using PlaybackCoordinateResolver? stepResolver = activeResolver is null
+                    ? PlaybackCoordinateResolver.Create(session, effectiveSettings)
+                    : null;
+                PlaybackCoordinateResolver coordinateResolver = activeResolver ?? stepResolver!;
+                await coordinateResolver.PrepareForLogicalEventAsync(
+                    resolvedLogicalEventIndex,
+                    session.Events.Count,
+                    _cursorPositionProvider,
+                    cancellationToken).ConfigureAwait(false);
+                playbackEvent = coordinateResolver.Resolve(sourceEvent);
+
                 HeldInputTracker tracker;
                 bool standalone;
                 lock (_syncRoot)
@@ -633,12 +702,12 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                 {
                     if (!effectiveSettings.SimulationMode)
                     {
-                        await SendTrackedEventAsync(playbackEvent, tracker, cancellationToken);
+                        await SendTrackedEventAsync(playbackEvent, tracker, cancellationToken).ConfigureAwait(false);
                     }
                 }
                 finally
                 {
-                    if (standalone) { await ReleaseHeldInputsAsync(tracker); }
+                    if (standalone) { await ReleaseHeldInputsAsync(tracker).ConfigureAwait(false); }
                 }
             }
             finally
@@ -672,25 +741,15 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                 playbackException);
             throw playbackException;
         }
-        finally
-        {
-            if (shouldDisposeCoordinateResolver)
-            {
-                coordinateResolver.Dispose();
-            }
-        }
     }
 
     private PlaybackCoordinateResolver? GetActiveCoordinateResolverIfPaused()
     {
-        if (!_applicationStateService.IsState(AppState.Paused))
-        {
-            return null;
-        }
-
         lock (_syncRoot)
         {
-            return _activeCoordinateResolver;
+            return !_playbackCompleting && _applicationStateService.IsState(AppState.Paused)
+                ? _activeCoordinateResolver
+                : null;
         }
     }
 
@@ -704,7 +763,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
             return;
         }
 
-        await _eventExecutionGate.WaitAsync(cancellationToken);
+        await _eventExecutionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -728,7 +787,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
             return;
         }
 
-        await _eventExecutionGate.WaitAsync(cancellationToken);
+        await _eventExecutionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -763,7 +822,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
             waitTask = _resumeSignal.Task;
         }
 
-        await waitTask.WaitAsync(cancellationToken);
+        await waitTask.WaitAsync(cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfStopRequested();
     }
@@ -773,13 +832,13 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         PlaybackSettings effectiveSettings,
         CancellationToken cancellationToken)
     {
-        await _eventExecutionGate.WaitAsync(cancellationToken);
+        await _eventExecutionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
             if (!effectiveSettings.SimulationMode)
             {
-                await SendTrackedEventAsync(playbackEvent, _heldInputs!, cancellationToken);
+                await SendTrackedEventAsync(playbackEvent, _heldInputs!, cancellationToken).ConfigureAwait(false);
             }
 
             SafeInvokeEventPlayed(playbackEvent);
@@ -795,13 +854,13 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         if (input.EventType == MacroEventType.Mouse && input.MouseActionType == MouseActionType.DoubleClick)
         {
             // Observe each successful sub-send even if a later double-click send fails.
-            await SendMousePartAsync(MouseActionType.LeftDown);
-            await SendMousePartAsync(MouseActionType.LeftUp);
-            await SendMousePartAsync(MouseActionType.LeftDown);
-            await SendMousePartAsync(MouseActionType.LeftUp);
+            await SendMousePartAsync(MouseActionType.LeftDown).ConfigureAwait(false);
+            await SendMousePartAsync(MouseActionType.LeftUp).ConfigureAwait(false);
+            await SendMousePartAsync(MouseActionType.LeftDown).ConfigureAwait(false);
+            await SendMousePartAsync(MouseActionType.LeftUp).ConfigureAwait(false);
             return;
         }
-        await _inputPlaybackAdapter.PlayEventAsync(input, cancellationToken);
+        await SendInputIfRunningAsync(input, cancellationToken).ConfigureAwait(false);
         tracker.RecordSuccessfulSend(input);
 
         async Task SendMousePartAsync(MouseActionType action)
@@ -814,8 +873,19 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
                 Y = input.Y,
                 TimestampUtc = input.TimestampUtc
             };
-            await _inputPlaybackAdapter.PlayEventAsync(part, cancellationToken);
+            await SendInputIfRunningAsync(part, cancellationToken).ConfigureAwait(false);
             tracker.RecordSuccessfulSend(part);
+        }
+    }
+
+    private Task SendInputIfRunningAsync(MacroEvent input, CancellationToken cancellationToken)
+    {
+        lock (_syncRoot)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfStopRequested();
+            // The Windows adapter sends synchronously. Admit each send under the same lock as Stop.
+            return _inputPlaybackAdapter.PlayEventAsync(input, cancellationToken);
         }
     }
 
@@ -825,7 +895,7 @@ public sealed class MacroPlaybackService : IMacroPlaybackService, IDisposable
         {
             try
             {
-                await _inputPlaybackAdapter.ReleaseEventAsync(release, CancellationToken.None);
+                await _inputPlaybackAdapter.ReleaseEventAsync(release, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
