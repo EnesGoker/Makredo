@@ -27,7 +27,8 @@
 
 - Kısayollar bağımsız kaydedilir; çakışan bağ Türkçe, engellemeyen bir uyarı bandında
   gösterilirken diğerleri çalışır. Basılı tutma tekrarı kayıt durumunu değiştirmez.
-  Kaydı başlatan/bitiren kısayol tuşları kayda sızmaz; araya giren kullanıcı girdisi korunur.
+  Fare hareketi, kaydı başlatan veya bitiren kısayolun modifier tuşlarını kayda
+  sokmaz. Tıklama ve kaydırma için kullanılan modifier tuşları korunur.
 
 - Oynatmanın kendi girdileri ve bırakma olayları kayda alınmaz. Diğer uygulamaların
   enjekte ettiği girdiler varsayılan olarak kaydedilir; bu seçenek ayarlardan kapatılabilir.
@@ -70,7 +71,8 @@
 
 - Hotkeys register independently. A non-modal Turkish warning identifies collisions
   while other bindings keep working. Holding a shortcut no longer toggles repeatedly.
-  Recording excludes starting/stopping command gestures and preserves intervening user input.
+  Mouse movement does not leak the starting or stopping shortcut's modifiers
+  into the recording. Modifiers used for clicks and scrolling are preserved.
 
 - Playback input and cleanup releases are excluded from recording. Foreign injected
   input remains enabled by default and can be disabled in settings.

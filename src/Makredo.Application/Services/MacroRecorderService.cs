@@ -25,7 +25,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
     private HotkeyRecordingFilter _hotkeyFilter = new([]);
 
     private MacroSession? _currentSession;
-    private DateTime _lastEventTimestampUtc;
+    private DateTime _latestEventTimestampUtc;
 
     public MacroRecorderService(
         IKeyboardHookSource keyboardHookSource,
@@ -390,7 +390,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
             _hotkeyFilter = new HotkeyRecordingFilter([]);
 
             _currentSession = null;
-            _lastEventTimestampUtc = _timeProvider.GetUtcNow().UtcDateTime;
+            _latestEventTimestampUtc = _timeProvider.GetUtcNow().UtcDateTime;
         }
 
         _logger.Log(
@@ -438,7 +438,13 @@ public sealed class MacroRecorderService : IMacroRecorderService
             }
 
             eventsToPublish = [];
-            FlushPendingModifierEventsUnsafe(eventsToPublish);
+            if (activity.ActionType is MouseActionType.LeftDown or MouseActionType.LeftUp
+                or MouseActionType.RightDown or MouseActionType.RightUp
+                or MouseActionType.MiddleDown or MouseActionType.MiddleUp
+                or MouseActionType.DoubleClick or MouseActionType.Wheel)
+            {
+                FlushPendingModifierEventsUnsafe(eventsToPublish);
+            }
             DateTime nowUtc = activity.TimestampUtc;
 
             MacroEvent macroEvent = new()
@@ -483,7 +489,7 @@ public sealed class MacroRecorderService : IMacroRecorderService
         _recordedEvents.Clear();
         _hotkeyFilter = new HotkeyRecordingFilter([]);
 
-        _lastEventTimestampUtc = timestampUtc;
+        _latestEventTimestampUtc = timestampUtc;
     }
 
     private MacroEvent CreateKeyboardMacroEventUnsafe(KeyboardActivityInfo keyboardActivity)
@@ -601,8 +607,12 @@ public sealed class MacroRecorderService : IMacroRecorderService
 
     private int CalculateDelayMsUnsafe(DateTime currentTimestampUtc)
     {
-        int delay = (int)(currentTimestampUtc - _lastEventTimestampUtc).TotalMilliseconds;
-        _lastEventTimestampUtc = currentTimestampUtc;
+        int delay = (int)(currentTimestampUtc - _latestEventTimestampUtc).TotalMilliseconds;
+        // A deferred modifier can be committed after a later mouse move.
+        if (currentTimestampUtc > _latestEventTimestampUtc)
+        {
+            _latestEventTimestampUtc = currentTimestampUtc;
+        }
 
         return Math.Max(delay, 0);
     }

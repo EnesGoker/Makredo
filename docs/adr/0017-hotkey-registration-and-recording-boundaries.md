@@ -30,12 +30,14 @@ Microsoft documents MOD_NOREPEAT and registration collisions in
 The low-level keyboard hook runs before WM_HOTKEY. A pure Core filter buffers
 only a contiguous, unpublished modifier prefix. Matching record/play/stop chords
 remove that prefix and the primary key, including repeats and subsequent releases.
-An ordinary key or mouse event commits the pending modifiers. A closed modifier
-tap is also committed. Consequently a user's Ctrl used with another key or mouse
-is preserved even if Ctrl remains held when the stopping shortcut is pressed.
-Left/right virtual key codes and extended-key metadata are retained unchanged.
-Buffered events retain capture timestamps; mouse delays are calculated only after
-flushing their preceding modifiers.
+An ordinary key, mouse button, wheel event or closed modifier tap commits the
+pending modifiers. Mouse movement is recorded immediately while the modifiers
+remain pending. This lets the recorder exclude a shortcut chord even if the
+cursor moved before the primary key was pressed. When a click or scroll follows,
+the pending modifiers are committed before that action.
+Left/right virtual key codes, extended-key metadata and capture timestamps are
+preserved. A modifier committed after a later move has zero playback delay.
+The next delay is measured from the latest capture time already committed.
 
 When a hotkey starts recording, the UI passes only that chord's currently held
 keys. Their later releases are excluded. The keyboard consumer initializes its
