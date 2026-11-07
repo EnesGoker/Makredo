@@ -30,20 +30,28 @@ public sealed class SingleInstanceIntegrationTests
         try
         {
             using Process primary = StartApp(executable);
+            Task<string> primaryErrors = primary.StandardError.ReadToEndAsync();
             try
             {
                 nint firstWindow = 0;
-                Assert.True(await WaitUntilAsync(() =>
+                bool startupCompleted = await WaitUntilAsync(() =>
                 {
                     primary.Refresh();
                     if (primary.HasExited)
                     {
-                        return false;
+                        return true;
                     }
 
                     firstWindow = primary.MainWindowHandle;
                     return firstWindow != 0 && primary.MainWindowTitle == "Makredo Kontrol Merkezi";
-                }, StartupDeadline), "The first Makredo process did not show its main window.");
+                }, StartupDeadline);
+                if (primary.HasExited)
+                {
+                    string error = await primaryErrors.WaitAsync(ActivationDeadline, TimeProvider.System);
+                    Assert.Fail($"The first Makredo process exited with code {primary.ExitCode}. {error}");
+                }
+
+                Assert.True(startupCompleted, $"The first Makredo process did not show its main window. Observed title: '{primary.MainWindowTitle}'.");
 
                 Assert.True(ShowWindowAsync(firstWindow, MinimizeWindow), "The first window could not be minimized.");
                 Assert.True(await WaitUntilAsync(() => IsIconic(firstWindow), ActivationDeadline),
@@ -82,6 +90,7 @@ public sealed class SingleInstanceIntegrationTests
         Process.Start(new ProcessStartInfo(executable)
         {
             UseShellExecute = false,
+            RedirectStandardError = true,
             WorkingDirectory = Path.GetDirectoryName(executable)!
         }) ?? throw new InvalidOperationException("Makredo.exe could not be started.");
 

@@ -15,7 +15,8 @@ allows an independent instance in another Windows session.
 
 ## Activation
 
-The owner creates a message-only window before migration and sets a
+The owner selects WinForms exception mode before creating any window.
+It then creates a message-only window before migration and sets a
 session-local readiness event once the endpoint exists. A duplicate
 waits at most three seconds for readiness. It resolves the endpoint's PID,
 calls AllowSetForegroundWindow for that PID and posts the registered

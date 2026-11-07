@@ -25,8 +25,6 @@ internal sealed class GlobalExceptionHandlerRegistration : IDisposable
             return;
         }
 
-        global::System.Windows.Forms.Application.SetUnhandledExceptionMode(
-            global::System.Windows.Forms.UnhandledExceptionMode.CatchException);
         global::System.Windows.Forms.Application.ThreadException += OnThreadException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;

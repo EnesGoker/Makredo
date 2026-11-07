@@ -33,6 +33,7 @@ internal static class Program
     private static void RunPrimaryInstance()
     {
         ApplicationConfiguration.Initialize();
+        global::System.Windows.Forms.Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         using var activation = new WindowsInstanceActivation();
 
         if (!TryPrepareStorage(
